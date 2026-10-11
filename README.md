@@ -119,7 +119,7 @@ Customers view their reservations, cancel eligible bookings, and submit ratings 
 - **Data consistency:** Cross-table relationships, booking status transitions, guest limits, and review eligibility require appropriate validation.
 - **Sensitive configuration:** Payment credentials and other secrets must be stored in environment variables.
 
-## 8. Current Progress — Mid-Sem
+## 8. Current Progress : Mid-Sem
 
 The following section should reflect the actual state of the repository at submission time.
 
