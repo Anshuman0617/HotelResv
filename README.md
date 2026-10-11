@@ -1,4 +1,4 @@
-# Hotel Booking System — DBMS Mid-Sem Project
+# Hotel Booking System - DBMS Mid-Sem Project
 
 ## 1. Project Overview
 
