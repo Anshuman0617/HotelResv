@@ -31,7 +31,8 @@ from pathlib import Path
 
 SEED_SQL_PATH = Path(__file__).resolve().parent / "seed.sql"
 
-# Deterministic bcrypt hash for password "Password@123"
+# Deterministic bcrypt hash (FastAPI docs example) for the plaintext password "secret".
+# All seeded users can log in with: <their email> / secret
 DEFAULT_PASSWORD_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
 
 
