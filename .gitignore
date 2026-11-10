@@ -78,5 +78,9 @@ logs/
 hotel_booking_5_day_plan*
 hotel_booking_database_design*
 
+# Graphify (knowledge graph output + Antigravity agent config)
+graphify-out/
+.agents/
+
 
 
