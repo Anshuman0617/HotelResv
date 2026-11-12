@@ -42,7 +42,11 @@ frontend/
 │   │   └── [id]/page.tsx           # Hotel details and room types (M5)
 │   ├── bookings/page.tsx           # Customer booking history (M5)
 │   ├── checkout/page.tsx           # Checkout and payment (M5)
-│   ├── manager/page.tsx            # Manager dashboard placeholder (M6)
+│   ├── manager/
+│   │   ├── page.tsx                # Manager dashboard (M6)
+│   │   ├── hotels/page.tsx         # Hotel profile management (M6)
+│   │   ├── room-types/page.tsx     # Room type management (M6)
+│   │   └── rooms/page.tsx          # Physical room management (M6)
 │   ├── globals.css                 # Tailwind entry and theme tokens
 │   ├── layout.tsx                  # Root layout with shared Navbar
 │   └── page.tsx                    # Landing page with search
@@ -51,10 +55,12 @@ frontend/
 │   ├── SearchBar.tsx               # City, dates, and guests search
 │   ├── HotelCard.tsx               # Hotel summary card
 │   ├── RoomCard.tsx                # Room type card
-│   └── BookingCard.tsx             # Booking summary card
+│   ├── BookingCard.tsx             # Booking summary card
+│   └── manager/                    # Manager navigation, context and UI
 ├── lib/
 │   ├── api.ts                      # API base URL, response envelope, fetch helper
-│   └── types.ts                    # Types matching the database models
+│   ├── types.ts                    # Types matching the database models
+│   └── manager/mock.ts             # Schema-aligned manager sample data
 └── public/                         # Static assets
 ```
 
@@ -81,4 +87,4 @@ sets the `Authorization: Bearer <token>` header when a token is stored in
 ## Ownership
 
 - **M5** – customer pages and shared components.
-- **M6** – manager dashboard under `app/manager/` (placeholder reserved).
+- **M6** – manager dashboard and hotel/room inventory UI under `app/manager/`.
