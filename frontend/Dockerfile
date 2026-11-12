@@ -1,8 +1,12 @@
+# syntax=docker/dockerfile:1
 # ---- deps: install node_modules (also the base for dev mode) ----
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# Retries + a persistent npm cache so slow or flaky networks don't fail the build
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund \
+      --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 # ---- builder: production build ----
 FROM node:20-alpine AS builder
