@@ -102,6 +102,7 @@ ORDER BY revenue_month DESC, monthly_revenue DESC;
 -- Concepts: Multiple joins, COUNT, AVG, SUM, GROUP BY, ORDER BY
 -- -----------------------------------------------------------------------------
 SELECT
+    h.id AS hotel_id,
     h.name AS hotel_name,
     h.city,
     rt.id AS room_type_id,
@@ -115,7 +116,7 @@ JOIN hotels h ON h.id = rt.hotel_id
 JOIN booking_rooms br ON br.room_type_id = rt.id
 JOIN bookings b ON b.id = br.booking_id
 WHERE b.status IN ('confirmed', 'completed')
-GROUP BY h.name, h.city, rt.id, rt.name, rt.base_price
+GROUP BY h.id, h.name, h.city, rt.id, rt.name, rt.base_price
 ORDER BY times_booked DESC, total_room_revenue DESC
 LIMIT 15;
 
