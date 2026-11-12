@@ -1,0 +1,24 @@
+# Dev override: live source mounts + hot reload.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  backend:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./backend:/app/backend
+      - ./database:/app/database
+
+  frontend:
+    build:
+      target: deps
+    command: ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      # File-change events don't cross macOS/Windows bind mounts reliably
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # Keep the image's node_modules and a container-only .next cache
+      - /app/node_modules
+      - /app/.next
