@@ -1,0 +1,20 @@
+# Build context for backend/Dockerfile (context: repo root)
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.DS_Store
+.agents
+.pytest_cache
+graphify-out
+docs
+migrations
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/.pytest_cache
+
+# Frontend has its own image and context
+frontend
