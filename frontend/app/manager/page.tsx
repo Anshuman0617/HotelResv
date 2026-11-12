@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import StatCard from "@/components/manager/StatCard";
+import ManagerQueryPreview from "@/components/manager/ManagerQueryPreview";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
 import {
   getHotelDashboard,
@@ -70,13 +72,21 @@ export default function ManagerPage() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-slate-900">
             Recent reservations
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Latest stays for the selected hotel.
-          </p>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <p className="text-sm text-slate-500">
+              Latest stays for the selected hotel.
+            </p>
+            <Link
+              href="/manager/reservations"
+              className="text-sm font-semibold text-indigo-700 hover:text-indigo-800"
+            >
+              View all reservations
+            </Link>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -121,6 +131,8 @@ export default function ManagerPage() {
           </table>
         </div>
       </section>
+
+      <ManagerQueryPreview />
     </div>
   );
 }
