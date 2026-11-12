@@ -155,6 +155,43 @@ hotel-booking-system/
 
 *The directory structure is illustrative. Update it to match the files actually present in the repository.*
 
+### Run with Docker
+
+The app runs as three containers: `db` (PostgreSQL 16), `backend` (FastAPI) and `frontend` (Next.js). The only requirement is Docker Desktop.
+
+```bash
+cp .env.example .env              # optional; every variable has a default
+docker compose up --build         # production-style images
+```
+
+| Service  | URL / port                                   |
+|----------|----------------------------------------------|
+| Frontend | http://localhost:3000                        |
+| Backend  | http://localhost:8000 (docs at `/docs`)      |
+| Database | `localhost:5433` (5433 avoids a local Postgres on 5432) |
+
+On start, the backend runs `alembic upgrade head` and loads `database/seed.sql` (735 rows) if the `users` table is empty. All seeded users log in with their email and the password `secret`, e.g. `aarav.sharma1@example.com` / `secret`. Set `SEED_ON_START=false` to skip seeding.
+
+**Dev mode (hot reload).** Source folders are mounted into the containers, so code changes apply without a rebuild:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Rebuild (`--build`) after changing `requirements.txt` or `package.json`.
+
+**Useful commands**
+
+```bash
+docker compose down                             # stop (data is kept)
+docker compose down -v                          # stop and wipe the database volume
+docker compose logs -f backend                  # follow backend logs
+docker compose exec db psql -U postgres hotel_booking
+docker compose exec backend pytest -q
+```
+
+`NEXT_PUBLIC_API_BASE_URL` is baked into the frontend at build time, and the browser uses it, so it must be a host URL such as `http://localhost:8000`, not `http://backend:8000`.
+
 ## 10. Future Work
 
 The planned development work includes:
