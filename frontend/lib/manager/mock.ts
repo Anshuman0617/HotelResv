@@ -116,9 +116,23 @@ export type PopularRoomTypeResult = {
   total_room_revenue: number;
 };
 
+export type HotelRatingResult = {
+  hotel_id: number;
+  hotel_name: string;
+  city: string;
+  total_reviews: number;
+  average_rating: number;
+  min_rating: number;
+  max_rating: number;
+};
+
 export type MockReportPreview<T> = {
   source: "mock";
   rows: T[];
+};
+
+export type HotelRatingMockPreview = MockReportPreview<HotelRatingResult> & {
+  hotelsWithoutReviews: number[];
 };
 
 export const managerHotels: ManagerHotel[] = [
@@ -565,6 +579,15 @@ export const query4MockPreview: MockReportPreview<PopularRoomTypeResult> = {
     { hotel_id: 3, hotel_name: "Ridge House", city: "Jaipur", room_type_id: 301, room_type_name: "Heritage King", current_base_price: 9400, times_booked: 7, avg_booked_nightly_rate: 9100, total_room_revenue: 354900 },
     { hotel_id: 3, hotel_name: "Ridge House", city: "Jaipur", room_type_id: 302, room_type_name: "Terrace Suite", current_base_price: 16400, times_booked: 5, avg_booked_nightly_rate: 15900, total_room_revenue: 397500 },
   ],
+};
+
+export const query5MockPreview: HotelRatingMockPreview = {
+  source: "mock",
+  rows: [
+    { hotel_id: 1, hotel_name: "Harbour View Inn", city: "Mumbai", total_reviews: 16, average_rating: 4.81, min_rating: 4, max_rating: 5 },
+    { hotel_id: 2, hotel_name: "Lotus Court", city: "Bengaluru", total_reviews: 12, average_rating: 4.58, min_rating: 3, max_rating: 5 },
+  ],
+  hotelsWithoutReviews: [3],
 };
 
 const dashboards: Record<number, HotelDashboard> = {
