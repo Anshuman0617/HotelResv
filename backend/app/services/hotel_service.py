@@ -161,8 +161,10 @@ def search_availability(
         JOIN room_types rt ON rt.hotel_id = h.id
         JOIN rooms r ON r.room_type_id = rt.id AND r.hotel_id = h.id
         WHERE h.status = 'active'
-          AND (:hotel_id IS NULL OR h.id = :hotel_id)
-          AND (:city IS NULL OR LOWER(h.city) = LOWER(:city))
+          -- Explicit casts: psycopg 3 sends untyped NULLs, so Postgres cannot
+          -- infer the type of a bare "<param> IS NULL" (AmbiguousParameter error).
+          AND (CAST(:hotel_id AS INTEGER) IS NULL OR h.id = CAST(:hotel_id AS INTEGER))
+          AND (CAST(:city AS TEXT) IS NULL OR LOWER(h.city) = LOWER(CAST(:city AS TEXT)))
           AND r.status = 'active'
           AND rt.max_guests >= :guests
           AND NOT EXISTS (
