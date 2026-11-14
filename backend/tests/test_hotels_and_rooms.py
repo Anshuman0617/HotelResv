@@ -324,3 +324,43 @@ def test_api_endpoints_workflow(db_session):
         app.dependency_overrides.clear()
 
 
+def test_public_hotel_routes_hide_non_active_hotels(db_session):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.database import get_db
+
+    db, user = db_session
+    hotel = Hotel(
+        name="Pending Hotel",
+        address_line="Street",
+        city="City",
+        country="India",
+        timezone="Asia/Kolkata",
+        status="pending",
+        registered_by=user.id,
+    )
+    db.add(hotel)
+    db.flush()
+    room_type = RoomType(
+        hotel_id=hotel.id,
+        name="Standard",
+        max_guests=2,
+        base_price=Decimal("100.00"),
+    )
+    db.add(room_type)
+    db.commit()
+
+    app.dependency_overrides[get_db] = lambda: db
+    client = TestClient(app)
+    try:
+        listed = client.get("/api/hotels")
+        assert listed.status_code == 200
+        assert all(item["id"] != hotel.id for item in listed.json()["data"])
+        assert client.get("/api/hotels?status=pending").status_code == 422
+        assert client.get("/api/hotels?status=").status_code == 422
+        assert client.get(f"/api/hotels/{hotel.id}").status_code == 404
+        assert client.get(f"/api/hotels/{hotel.id}/room-types").status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+

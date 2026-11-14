@@ -271,11 +271,10 @@ function HotelDetailContent() {
               return (
                 <article
                   key={rt.id}
-                  className={`flex flex-col gap-3 rounded-xl border p-5 shadow-sm transition-all ${
-                    isRoomFull
-                      ? "border-rose-200 bg-rose-50/20"
-                      : "border-slate-200 bg-white"
-                  }`}
+                  className={`flex flex-col gap-3 rounded-xl border p-5 shadow-sm transition-all ${isRoomFull
+                    ? "border-rose-200 bg-rose-50/20"
+                    : "border-slate-200 bg-white"
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-base font-semibold text-slate-900">{rt.name}</h3>
@@ -306,11 +305,10 @@ function HotelDetailContent() {
                       type="button"
                       disabled={isRoomFull}
                       onClick={() => handleBook(rt.id)}
-                      className={`rounded-md px-3.5 py-2 text-sm font-semibold transition-colors shadow-sm ${
-                        isRoomFull
-                          ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
-                          : "bg-indigo-600 text-white hover:bg-indigo-700"
-                      }`}
+                      className={`rounded-md px-3.5 py-2 text-sm font-semibold transition-colors shadow-sm ${isRoomFull
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700"
+                        }`}
                     >
                       {isRoomFull ? "Sold Out" : "Book this room"}
                     </button>
