@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.routers.auth import router as auth_router
+from app.routers.booking import router as booking_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -13,6 +14,7 @@ app = FastAPI(
     description="Database-driven Hotel Booking System REST API (FastAPI + PostgreSQL).",
 )
 app.include_router(auth_router)
+app.include_router(booking_router)
 
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 app.add_middleware(

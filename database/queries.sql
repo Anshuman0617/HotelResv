@@ -42,31 +42,30 @@ ORDER BY rt.base_price ASC;
 -- payment status, and review rating
 -- Concepts: 6-table JOIN / LEFT JOIN, aggregation, date arithmetic
 -- -----------------------------------------------------------------------------
-SELECT
-    b.id AS booking_id,
-    u.full_name AS customer_name,
-    u.email AS customer_email,
-    h.name AS hotel_name,
-    h.city AS hotel_city,
-    b.check_in,
-    b.check_out,
-    (b.check_out - b.check_in) AS nights,
-    b.status AS booking_status,
-    COUNT(DISTINCT br.id) AS rooms_booked,
-    SUM(br.nightly_rate * (b.check_out - b.check_in)) AS calculated_room_total,
-    COALESCE(MAX(p.status), 'unpaid') AS latest_payment_status,
-    rv.rating AS review_rating
+WITH room_totals AS (
+    SELECT br.booking_id, rt.hotel_id, COUNT(*) AS rooms_booked,
+           SUM(br.nightly_rate) AS nightly_total
+    FROM booking_rooms br
+    JOIN room_types rt ON rt.id = br.room_type_id
+    GROUP BY br.booking_id, rt.hotel_id
+)
+SELECT b.id AS booking_id, u.full_name AS customer_name, u.email AS customer_email,
+       h.name AS hotel_name, h.city AS hotel_city, b.check_in, b.check_out,
+       b.check_out - b.check_in AS nights, b.status AS booking_status,
+       rooms.rooms_booked,
+       rooms.nightly_total * (b.check_out - b.check_in) AS calculated_room_total,
+       COALESCE(latest.status, 'unpaid') AS latest_payment_status,
+       rv.rating AS review_rating
 FROM bookings b
 JOIN users u ON u.id = b.user_id
-JOIN booking_rooms br ON br.booking_id = b.id
-JOIN room_types rt ON rt.id = br.room_type_id
-JOIN hotels h ON h.id = rt.hotel_id
-LEFT JOIN payments p ON p.booking_id = b.id
+JOIN room_totals rooms ON rooms.booking_id = b.id
+JOIN hotels h ON h.id = rooms.hotel_id
+LEFT JOIN LATERAL (
+    SELECT p.status FROM payments p WHERE p.booking_id = b.id
+    ORDER BY p.created_at DESC, p.id DESC LIMIT 1
+) latest ON TRUE
 LEFT JOIN reviews rv ON rv.booking_id = b.id
-GROUP BY
-    b.id, u.full_name, u.email, h.name, h.city,
-    b.check_in, b.check_out, b.status, rv.rating
-ORDER BY b.created_at DESC
+ORDER BY b.created_at DESC, b.id DESC
 LIMIT 25;
 
 
