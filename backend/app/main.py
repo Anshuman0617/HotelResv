@@ -7,6 +7,7 @@ from app.config import settings
 from app.database import get_db
 from app.routers.auth import router as auth_router
 from app.routers.booking import router as booking_router
+from app.routers.reports import router as reports_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,6 +16,7 @@ app = FastAPI(
 )
 app.include_router(auth_router)
 app.include_router(booking_router)
+app.include_router(reports_router)
 
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 app.add_middleware(
