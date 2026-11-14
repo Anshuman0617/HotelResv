@@ -132,6 +132,21 @@ export default function ManagerPage() {
         </div>
       </section>
 
+      <section className="flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold text-slate-900">Explore hotel reports</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Review monthly revenue, popular room types, and hotel ratings.
+          </p>
+        </div>
+        <Link
+          href="/manager/reports"
+          className="w-fit rounded-md bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800"
+        >
+          View reports
+        </Link>
+      </section>
+
       <ManagerQueryPreview />
     </div>
   );

@@ -19,9 +19,7 @@ export const metadata: Metadata = {
     "Search hotels, book rooms, and manage reservations with HotelResv.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"

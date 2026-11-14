@@ -46,7 +46,8 @@ frontend/
 │   │   ├── page.tsx                # Manager dashboard (M6)
 │   │   ├── hotels/page.tsx         # Hotel profile management (M6)
 │   │   ├── room-types/page.tsx     # Room type management (M6)
-│   │   └── rooms/page.tsx          # Physical room management (M6)
+│   │   ├── rooms/page.tsx          # Physical room management (M6)
+│   │   └── reports/page.tsx        # Manager reports (M6)
 │   ├── globals.css                 # Tailwind entry and theme tokens
 │   ├── layout.tsx                  # Root layout with shared Navbar
 │   └── page.tsx                    # Landing page with search
@@ -87,4 +88,24 @@ sets the `Authorization: Bearer <token>` header when a token is stored in
 ## Ownership
 
 - **M5** – customer pages and shared components.
-- **M6** – manager dashboard and hotel/room inventory UI under `app/manager/`.
+- **M6** – manager dashboard, hotel/room inventory, reservations, and reports under `app/manager/`.
+
+## Manager reports (Day 4 / M6)
+
+The manager Reports page previews the three M6 SQL reports in
+`../database/queries.sql`:
+
+- **Query 3 – Monthly revenue:** successful payment totals by month and hotel.
+  The selected hotel and reporting period control the chart, rows, and period
+  total.
+- **Query 4 – Popular room types:** confirmed/completed booking counts,
+  average booked nightly rate, and room revenue, scoped to the selected hotel.
+- **Query 5 – Hotel ratings:** hotels ranked by average rating and review count.
+  The selected hotel is highlighted; hotels without reviews are not assigned a
+  fabricated rating and are excluded from the query's ranking.
+
+The figures are labelled **mock previews** from
+`lib/manager/mock.ts`. SQL execution against PostgreSQL was not available during
+implementation, and the page does not claim live database results. Backend/API
+integration, database connectivity, and wiring the query result adapters remain
+dependencies for live reports.
