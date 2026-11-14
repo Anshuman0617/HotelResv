@@ -35,7 +35,10 @@ def context():
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS citext"))
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     engine = create_engine(url, connect_args={"options": f"-csearch_path={schema},public"})
-    Base.metadata.create_all(engine)
+    # checkfirst=False: search_path includes public, so the default existence
+    # check would find the real tables there and skip creating them in the
+    # test schema, sending test rows into public.
+    Base.metadata.create_all(engine, checkfirst=False)
     sessions = sessionmaker(bind=engine, autoflush=False)
     with sessions.begin() as db:
         users = [User(full_name="One", email="one@example.com", password_hash="x"), User(full_name="Two", email="two@example.com", password_hash="x")]
