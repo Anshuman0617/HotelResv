@@ -7,7 +7,15 @@ from app.dependencies.auth import get_current_user
 from app.models.booking import Booking
 from app.models.user import User
 from app.schemas.booking import BookingRequest, PaymentRequest, ReviewRequest
-from app.services.booking_service import booking_data, cancel_booking, create_booking, create_review, owned_booking, record_payment
+from app.services.booking_service import (
+    booking_data,
+    cancel_booking,
+    complete_booking,
+    create_booking,
+    create_review,
+    owned_booking,
+    record_payment,
+)
 
 router = APIRouter(prefix="/api/bookings", tags=["Bookings"])
 
@@ -40,6 +48,11 @@ def cancel(booking_id: int, db: Session = Depends(get_db), user: User = Depends(
 @router.post("/{booking_id}/payments")
 def pay(booking_id: int, request: PaymentRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return response(record_payment(db, booking_id, user.id, request), "Payment processed")
+
+
+@router.post("/{booking_id}/complete")
+def complete(booking_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return response(complete_booking(db, booking_id, user.id), "Stay completed")
 
 
 @router.post("/{booking_id}/reviews", status_code=status.HTTP_201_CREATED)

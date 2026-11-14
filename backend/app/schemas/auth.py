@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -33,6 +32,7 @@ class AuthResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -40,3 +40,16 @@ class LoginRequest(BaseModel):
     _validate_password_length = field_validator("password")(
         validate_password_byte_length
     )
+
+
+class GoogleOAuthRequest(BaseModel):
+    id_token: str
+
+
+    _validate_password_length = field_validator("password")(
+        validate_password_byte_length
+    )
+
+
+class GoogleOAuthRequest(BaseModel):
+    id_token: str

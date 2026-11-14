@@ -1,6 +1,42 @@
 # API contracts
 
-All endpoints require `Authorization: Bearer <token>`. Successful responses use `{"success": true, "message": "...", "data": ...}`. Dates use `YYYY-MM-DD`; monetary amounts are decimal values in INR. Booking access is limited to the authenticated owner.
+All endpoints require `Authorization: Bearer <token>` where authenticated. Successful responses use `{"success": true, "message": "...", "data": ...}`. Dates use `YYYY-MM-DD`; monetary amounts are decimal values in INR. Booking access is limited to the authenticated owner.
+
+## Authentication (Owner: M1)
+
+- `POST /api/auth/register` (201): Register a new user with `full_name`, `email`, `password`, and optional `phone`. Returns access token and user info.
+- `POST /api/auth/login`: Login with `email` and `password`. Returns access token and user info.
+- `POST /api/auth/google`: Login/Register with Google OAuth `id_token`. Returns access token and user info.
+- `GET /api/auth/me`: Retrieve current authenticated user profile. Requires Bearer token.
+
+## Hotels and inventory (Owner: M3)
+
+Public endpoints allow customer hotel browsing and availability search; management endpoints require authenticated hotel membership (`owner`, `manager`, or `staff`).
+
+### Hotel endpoints
+
+- `GET /api/hotels`: List and search active hotels. Query parameters: `city`, `country`, `status` (default `active`), `search` (keyword in name, city, or description), `limit` (default 50), and `offset` (default 0). Returns array of hotels with room types.
+- `GET /api/hotels/{id}`: Detailed hotel profile with active room types.
+- `POST /api/hotels` (201): Register a new hotel. Requires authentication. The creator is automatically added as `owner` in `hotel_members`.
+  ```json
+  {"name": "Hotel Taj", "address_line": "Marine Drive", "city": "Mumbai", "country": "India", "timezone": "Asia/Kolkata"}
+  ```
+- `PUT /api/hotels/{id}`: Update hotel profile details. Requires `owner` or `manager` role in `hotel_members`.
+- `GET /api/hotels/{id}/reviews`: Retrieve public guest reviews, count, and aggregate rating.
+
+### Availability search (Query 1)
+
+- `GET /api/hotels/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N&city=City`: Executes Query 1 from `database/queries.sql`. Returns available hotels and room types that have unallocated physical rooms for the date range and meet minimum guest capacity, ordered by lowest price.
+- `GET /api/hotels/{id}/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N`: Scoped availability check for a specific hotel.
+
+### Room types and physical rooms
+
+- `GET /api/hotels/{id}/room-types`: List all room types for a hotel.
+- `POST /api/hotels/{id}/room-types` (201): Create a room type with `name`, `description`, `max_guests` (>0), and `base_price` (>=0). Requires `owner` or `manager`.
+- `PUT /api/hotels/{id}/room-types/{type_id}`: Update an existing room type. Requires `owner` or `manager`.
+- `GET /api/hotels/{id}/rooms`: List physical rooms. Query filters: `room_type_id`, `status`. Requires `owner`, `manager`, or `staff`.
+- `POST /api/hotels/{id}/rooms` (201): Add a physical room with `room_type_id`, `room_number`, `floor`, and `status`. Requires `owner` or `manager`.
+- `PATCH /api/hotels/{id}/rooms/{room_id}/status`: Change physical room status (`active`, `maintenance`, `inactive`). Requires `owner`, `manager`, or `staff`.
 
 ## Create booking
 
@@ -17,6 +53,7 @@ Each type occurs once; quantities and guests per room are positive, each room mu
 - `GET /api/bookings`: `data` is an array of the customer's bookings, newest first.
 - `GET /api/bookings/{id}`: `data` is one booking.
 - `POST /api/bookings/{id}/cancel`: pending or confirmed bookings can be cancelled before check-in; successful payments become `refunded`. Returns the booking.
+- `POST /api/bookings/{id}/complete`: Confirmed bookings can be completed upon checkout to allow guest review submission. Returns the updated booking.
 
 A booking object contains `id`, `hotel_id`, `check_in`, `check_out`, `guest_count`, `status`, `created_at`, `total`, `rooms`, `payments`, and `review` (null when absent). Each room has `room_type_id`, `room_type_name`, `room_id`, `room_number`, `guest_count`, and `nightly_rate`. Payment entries have `id`, `amount`, `currency`, `status`, `created_at`, and `paid_at`, newest first. A review has `id`, `rating`, and `comment`.
 

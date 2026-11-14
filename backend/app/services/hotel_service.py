@@ -206,3 +206,41 @@ def search_availability(
         for row in results
     ]
 
+
+def list_hotel_reviews(db: Session, hotel_id: int) -> dict:
+    """Retrieve all verified customer reviews and aggregate rating for a hotel."""
+    from app.models.review import Review
+    from app.models.user import User
+
+    # Ensure hotel exists
+    get_hotel(db, hotel_id)
+
+    reviews_stmt = (
+        select(Review, User.full_name)
+        .join(User, Review.user_id == User.id)
+        .where(Review.hotel_id == hotel_id)
+        .order_by(Review.created_at.desc())
+    )
+    rows = db.execute(reviews_stmt).all()
+
+    items = [
+        {
+            "id": r.id,
+            "rating": r.rating,
+            "comment": r.comment,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "user_name": user_name,
+        }
+        for r, user_name in rows
+    ]
+
+    total_reviews = len(items)
+    avg_rating = round(sum(i["rating"] for i in items) / total_reviews, 2) if total_reviews > 0 else 0.0
+
+    return {
+        "hotel_id": hotel_id,
+        "total_reviews": total_reviews,
+        "average_rating": avg_rating,
+        "reviews": items,
+    }
+

@@ -99,3 +99,55 @@ def login_user(db: Session, data: LoginRequest) -> dict:
         "token_type": "bearer",
         "user": user,
     }
+
+
+def google_oauth_login(db: Session, id_token_str: str) -> dict:
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+    from app.config import settings
+
+    if not settings.GOOGLE_CLIENT_ID:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured")
+
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            id_token_str,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {exc}")
+
+    google_id = idinfo["sub"]
+    email = idinfo.get("email", "")
+    full_name = idinfo.get("name", email.split("@")[0])
+
+    # Find by google_id first, then by email
+    user = db.scalar(select(User).where(User.google_id == google_id))
+    if user is None:
+        user = db.scalar(select(User).where(User.email == email))
+
+    if user is None:
+        # Create new user
+        user = User(
+            full_name=full_name,
+            email=email,
+            password_hash=None,
+            google_id=google_id,
+        )
+        try:
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Email already registered")
+    elif user.google_id is None:
+        # Link existing email account to Google
+        user.google_id = google_id
+        db.commit()
+        db.refresh(user)
+
+    access_token = create_access_token(user.id)
+    return {"access_token": access_token, "token_type": "bearer", "user": user}

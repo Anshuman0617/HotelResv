@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, gt=0, le=1440)
     CORS_ORIGINS: str = "http://localhost:3000"
+    GOOGLE_CLIENT_ID: str = ""
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
