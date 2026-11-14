@@ -26,3 +26,7 @@ class AuthResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class GoogleOAuthRequest(BaseModel):
+    id_token: str

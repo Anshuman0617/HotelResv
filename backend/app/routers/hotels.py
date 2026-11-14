@@ -230,3 +230,11 @@ def update_room_status(
     data = RoomResponse.model_validate(room).model_dump(mode="json")
     return api_response(data, "Room status updated successfully")
 
+
+@router.get("/{hotel_id}/reviews", response_model=dict[str, Any])
+def list_hotel_reviews(hotel_id: int, db: Session = Depends(get_db)):
+    """Retrieve all customer reviews and ratings for a hotel."""
+    data = hotel_service.list_hotel_reviews(db, hotel_id)
+    return api_response(data, "Hotel reviews retrieved successfully")
+
+

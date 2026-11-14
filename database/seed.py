@@ -484,6 +484,15 @@ def export_seed_sql(data: dict[str, list[dict[str, object]]], output_path: Path 
 def apply_seed_to_database(sql_path: Path) -> bool:
     """Apply seed.sql to PostgreSQL if sqlalchemy/psycopg and database are reachable."""
     try:
+        from dotenv import load_dotenv
+        root_dir = Path(__file__).resolve().parents[1]
+        load_dotenv(root_dir / ".env")
+        load_dotenv(root_dir / "backend" / ".env")
+        load_dotenv()
+    except Exception:
+        pass
+
+    try:
         from sqlalchemy import create_engine, text
     except ImportError:
         return False

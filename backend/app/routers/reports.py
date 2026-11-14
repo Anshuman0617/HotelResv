@@ -52,6 +52,12 @@ def hotel_repeat_customers(hotel_id: int, db: Session = Depends(get_db)):
     return response(report_service.repeat_customers(db, hotel_id), "Repeat customers retrieved")
 
 
+@router.get("/hotels/{hotel_id}/reports/payments", dependencies=[Depends(report_access)])
+def hotel_payments(hotel_id: int, db: Session = Depends(get_db)):
+    return response(report_service.hotel_payments(db, hotel_id), "Hotel payments retrieved")
+
+
+
 @router.get("/reports/top-rated-hotels")
 def top_rated_hotels(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
     return response(report_service.top_rated_hotels(db), "Top-rated hotels retrieved")

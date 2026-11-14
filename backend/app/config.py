@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     CORS_ORIGINS: str = "http://localhost:3000"
+    GOOGLE_CLIENT_ID: str = ""
 
     model_config = SettingsConfigDict(
         env_file=(str(ROOT_DIR / ".env"), ".env"),
