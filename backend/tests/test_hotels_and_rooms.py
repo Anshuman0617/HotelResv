@@ -320,7 +320,7 @@ def test_api_endpoints_workflow(db_session):
             f"/api/hotels/availability?check_in={check_in}&check_out={check_out}&guests=2"
         )
         assert res.status_code == 200
-        # The room is in maintenance, so available_rooms_count will be 0 or empty for that room
     finally:
         app.dependency_overrides.clear()
+
 
