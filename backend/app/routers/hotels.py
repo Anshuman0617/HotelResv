@@ -1,6 +1,6 @@
 from datetime import date
-from typing import Any
-from fastapi import APIRouter, Depends, Query, status
+from typing import Any, Literal
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -26,6 +26,13 @@ def api_response(data: Any, message: str) -> dict[str, Any]:
     return {"success": True, "message": message, "data": data}
 
 
+def get_public_hotel(db: Session, hotel_id: int):
+    hotel = hotel_service.get_hotel(db, hotel_id)
+    if hotel.status != "active":
+        raise HTTPException(status_code=404, detail="Hotel not found")
+    return hotel
+
+
 # -----------------------------------------------------------------------------
 # 1. Hotel Endpoints
 # -----------------------------------------------------------------------------
@@ -35,7 +42,7 @@ def api_response(data: Any, message: str) -> dict[str, Any]:
 def list_hotels(
     city: str | None = Query(None, description="Filter by city name"),
     country: str | None = Query(None, description="Filter by country"),
-    status: str | None = Query("active", description="Filter by hotel status (default: active)"),
+    status: Literal["active"] = Query("active", description="Only active hotels are publicly listed"),
     search: str | None = Query(None, description="Search name, city or description"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -80,7 +87,7 @@ def search_global_availability(
 @router.get("/{hotel_id}", response_model=dict[str, Any])
 def get_hotel(hotel_id: int, db: Session = Depends(get_db)):
     """Retrieve full details of a specific hotel including room types."""
-    hotel = hotel_service.get_hotel(db, hotel_id)
+    hotel = get_public_hotel(db, hotel_id)
     data = HotelResponse.model_validate(hotel).model_dump(mode="json")
     return api_response(data, "Hotel details retrieved successfully")
 
@@ -139,6 +146,7 @@ def check_hotel_availability(
 @router.get("/{hotel_id}/room-types", response_model=dict[str, Any])
 def list_hotel_room_types(hotel_id: int, db: Session = Depends(get_db)):
     """List all room types for a hotel."""
+    get_public_hotel(db, hotel_id)
     room_types = room_service.list_room_types(db, hotel_id)
     data = [RoomTypeResponse.model_validate(rt).model_dump(mode="json") for rt in room_types]
     return api_response(data, "Room types retrieved successfully")
