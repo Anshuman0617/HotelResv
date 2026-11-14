@@ -1,4 +1,4 @@
-# Booking API contracts
+# API contracts
 
 All endpoints require `Authorization: Bearer <token>`. Successful responses use `{"success": true, "message": "...", "data": ...}`. Dates use `YYYY-MM-DD`; monetary amounts are decimal values in INR. Booking access is limited to the authenticated owner.
 
@@ -24,6 +24,28 @@ A booking object contains `id`, `hotel_id`, `check_in`, `check_out`, `guest_coun
 
 - `POST /api/bookings/{id}/payments` with `{"outcome":"successful"}` or `{"outcome":"failed"}` returns the booking. Failure leaves it pending; success confirms it. Retrying after success returns the existing booking without another successful payment. A positive total is required by the existing payment schema.
 - `POST /api/bookings/{id}/reviews` with `{"rating":5,"comment":"Great stay"}` returns 201 and the review's `id`, `booking_id`, `hotel_id`, `rating`, and `comment`. Rating is 1–5; comment may be null. The owner may review once when the booking is `completed` and checkout has passed or is today. A separate team workflow must mark stays completed; this API does not do so.
+
+## Manager reports
+
+Read-only reports that run the SQL from `database/queries.sql` and the
+`hotel_booking_summary` view (`database/views.sql`) against PostgreSQL.
+Responses use `{"success": true, "message": "...", "data": ...}`.
+
+Hotel reports need a Bearer token for an `owner` or `manager` of that hotel
+(`hotel_members`). Staff and non-members get 403; a missing or invalid token
+gets 401.
+
+| Endpoint | Source | `data` |
+|---|---|---|
+| `GET /api/manager/hotels/{hotel_id}/reports/summary` | `hotel_booking_summary` view | one object: booking counts by status, `total_revenue`, `review_count`, `avg_rating` |
+| `GET /api/manager/hotels/{hotel_id}/reports/bookings?limit=25&offset=0` | Query 2 | booking history rows; `limit` is 1–100 |
+| `GET /api/manager/hotels/{hotel_id}/reports/revenue` | Query 3 | monthly revenue from successful payments, newest month first |
+| `GET /api/manager/hotels/{hotel_id}/reports/popular-room-types` | Query 4 | up to 15 room types by times booked |
+| `GET /api/manager/hotels/{hotel_id}/reports/repeat-customers` | Query 6 | customers with more than one booking at this hotel |
+| `GET /api/manager/reports/top-rated-hotels` | Query 5 | hotels with at least 3 reviews and an average of 3.5 or more; any signed-in user |
+
+Field names match the frontend types in `frontend/lib/manager/mock.ts`
+(`MonthlyRevenueResult`, `PopularRoomTypeResult`, `HotelRatingResult`).
 
 ## Errors
 
