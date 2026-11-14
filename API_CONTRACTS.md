@@ -23,7 +23,7 @@ A booking object contains `id`, `hotel_id`, `check_in`, `check_out`, `guest_coun
 ## Payments and reviews
 
 - `POST /api/bookings/{id}/payments` with `{"outcome":"successful"}` or `{"outcome":"failed"}` returns the booking. Failure leaves it pending; success confirms it. Retrying after success returns the existing booking without another successful payment. A positive total is required by the existing payment schema.
-- `POST /api/bookings/{id}/reviews` with `{"rating":5,"comment":"Great stay"}` returns 201 and the review's `id`, `booking_id`, `hotel_id`, `rating`, and `comment`. Rating is 1–5; comment may be null. The owner may review once when the booking is `completed` and checkout has passed or is today. A separate team workflow must mark stays completed; this API does not do so.
+- `POST /api/bookings/{id}/reviews` with `{"rating":5,"comment":"Great stay"}` returns 201 and the review's `id`, `booking_id`, `hotel_id`, `rating`, and `comment`. Rating is 1â€“5; comment may be null. The owner may review once when the booking is `completed` and checkout has passed or is today. A separate team workflow must mark stays completed; this API does not do so.
 
 ## Errors
 
