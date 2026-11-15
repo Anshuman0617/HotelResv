@@ -1,6 +1,41 @@
 # API contracts
 
-All endpoints require `Authorization: Bearer <token>`. Successful responses use `{"success": true, "message": "...", "data": ...}`. Dates use `YYYY-MM-DD`; monetary amounts are decimal values in INR. Booking access is limited to the authenticated owner.
+All endpoints require `Authorization: Bearer <token>` where authenticated. Successful responses use `{"success": true, "message": "...", "data": ...}`. Dates use `YYYY-MM-DD`; monetary amounts are decimal values in INR. Booking access is limited to the authenticated owner.
+
+## Authentication (Owner: M1)
+
+- `POST /api/auth/register` (201): Register a new user with `full_name`, `email`, `password`, and optional `phone`. Returns access token and user info.
+- `POST /api/auth/login`: Login with `email` and `password`. Returns access token and user info.
+- `GET /api/auth/me`: Retrieve current authenticated user profile. Requires Bearer token.
+
+## Hotels and inventory (Owner: M3)
+
+Public endpoints allow customer hotel browsing and availability search; management endpoints require authenticated hotel membership (`owner`, `manager`, or `staff`).
+
+### Hotel endpoints
+
+- `GET /api/hotels`: List and search active hotels. Query parameters: `city`, `country`, `status` (default `active`), `search` (keyword in name, city, or description), `limit` (default 50), and `offset` (default 0). Returns array of hotels with room types.
+- `GET /api/hotels/{id}`: Detailed hotel profile with active room types.
+- `POST /api/hotels` (201): Register a new hotel. Requires authentication. The creator is automatically added as `owner` in `hotel_members`.
+  ```json
+  {"name": "Hotel Taj", "address_line": "Marine Drive", "city": "Mumbai", "country": "India", "timezone": "Asia/Kolkata"}
+  ```
+- `PUT /api/hotels/{id}`: Update hotel profile details. Requires `owner` or `manager` role in `hotel_members`.
+- `GET /api/hotels/{id}/reviews`: Retrieve public guest reviews, count, and aggregate rating.
+
+### Availability search (Query 1)
+
+- `GET /api/hotels/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N&city=City`: Executes Query 1 from `database/queries.sql`. Returns available hotels and room types that have unallocated physical rooms for the date range and meet minimum guest capacity, ordered by lowest price.
+- `GET /api/hotels/{id}/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N`: Scoped availability check for a specific hotel.
+
+### Room types and physical rooms
+
+- `GET /api/hotels/{id}/room-types`: List all room types for a hotel.
+- `POST /api/hotels/{id}/room-types` (201): Create a room type with `name`, `description`, `max_guests` (>0), and `base_price` (>=0). Requires `owner` or `manager`.
+- `PUT /api/hotels/{id}/room-types/{type_id}`: Update an existing room type. Requires `owner` or `manager`.
+- `GET /api/hotels/{id}/rooms`: List physical rooms. Query filters: `room_type_id`, `status`. Requires `owner`, `manager`, or `staff`.
+- `POST /api/hotels/{id}/rooms` (201): Add a physical room with `room_type_id`, `room_number`, `floor`, and `status`. Requires `owner` or `manager`.
+- `PATCH /api/hotels/{id}/rooms/{room_id}/status`: Change physical room status (`active`, `maintenance`, `inactive`). Requires `owner`, `manager`, or `staff`.
 
 ## Create booking
 
@@ -10,20 +45,21 @@ All endpoints require `Authorization: Bearer <token>`. Successful responses use 
 {"hotel_id": 1, "check_in": "2027-01-10", "check_out": "2027-01-12", "rooms": [{"room_type_id": 2, "quantity": 2, "guests_per_room": 2}, {"room_type_id": 3, "quantity": 1, "guests_per_room": 1}]}
 ```
 
-Each type occurs once; quantities and guests per room are positive, each room must fit its guests, and at most 100 rooms may be requested. All types must belong to the same active hotel. Check-in is today or later; checkout is later than check-in. Pending and confirmed bookings reserve rooms, and checkout and check-in on the same date do not overlap. The response contains the booking object below. A booking starts `pending`; rates are snapshots of room type prices.
+Each type occurs once; quantities and guests per room are positive, each room must fit its guests, and at most 100 rooms may be requested. All types must belong to the same active hotel. Check-in is today or later; checkout is later than check-in. Pending and confirmed bookings reserve rooms, and checkout and check-in on the same date do not overlap. A customer who already has a pending or confirmed booking at the hotel for overlapping dates gets 409. The response contains the booking object below. A booking starts `pending`; rates are snapshots of room type prices.
 
 ## Read and cancel
 
 - `GET /api/bookings`: `data` is an array of the customer's bookings, newest first.
 - `GET /api/bookings/{id}`: `data` is one booking.
 - `POST /api/bookings/{id}/cancel`: pending or confirmed bookings can be cancelled before check-in; successful payments become `refunded`. Returns the booking.
+- `POST /api/bookings/{id}/complete`: Checks out of a confirmed booking so the guest can review it. Check-in night must have passed (409 otherwise); checking out early shortens `check_out` to today. Returns the updated booking.
 
 A booking object contains `id`, `hotel_id`, `check_in`, `check_out`, `guest_count`, `status`, `created_at`, `total`, `rooms`, `payments`, and `review` (null when absent). Each room has `room_type_id`, `room_type_name`, `room_id`, `room_number`, `guest_count`, and `nightly_rate`. Payment entries have `id`, `amount`, `currency`, `status`, `created_at`, and `paid_at`, newest first. A review has `id`, `rating`, and `comment`.
 
 ## Payments and reviews
 
 - `POST /api/bookings/{id}/payments` with `{"outcome":"successful"}` or `{"outcome":"failed"}` returns the booking. Failure leaves it pending; success confirms it. Retrying after success returns the existing booking without another successful payment. A positive total is required by the existing payment schema.
-- `POST /api/bookings/{id}/reviews` with `{"rating":5,"comment":"Great stay"}` returns 201 and the review's `id`, `booking_id`, `hotel_id`, `rating`, and `comment`. Rating is 1–5; comment may be null. The owner may review once when the booking is `completed` and checkout has passed or is today. A separate team workflow must mark stays completed; this API does not do so.
+- `POST /api/bookings/{id}/reviews` with `{"rating":5,"comment":"Great stay"}` returns 201 and the review's `id`, `booking_id`, `hotel_id`, `rating`, and `comment`. Rating is 1–5; comment may be null. The owner may review once when the booking is `completed` and checkout has passed or is today. `POST /api/bookings/{id}/complete` marks a stay completed.
 
 ## Manager reports
 
@@ -42,6 +78,7 @@ gets 401.
 | `GET /api/manager/hotels/{hotel_id}/reports/revenue` | Query 3 | monthly revenue from successful payments, newest month first |
 | `GET /api/manager/hotels/{hotel_id}/reports/popular-room-types` | Query 4 | up to 15 room types by times booked |
 | `GET /api/manager/hotels/{hotel_id}/reports/repeat-customers` | Query 6 | customers with more than one booking at this hotel |
+| `GET /api/manager/hotels/{hotel_id}/reports/payments` | `payments` table | payments for this hotel's bookings with customer name, newest first |
 | `GET /api/manager/reports/top-rated-hotels` | Query 5 | hotels with at least 3 reviews and an average of 3.5 or more; any signed-in user |
 
 Field names match the frontend types in `frontend/lib/manager/mock.ts`
