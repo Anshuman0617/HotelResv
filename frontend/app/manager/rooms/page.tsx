@@ -3,12 +3,13 @@
 import { useMemo, useState, type FormEvent } from "react";
 import ManagerModal from "@/components/manager/ManagerModal";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError } from "@/lib/manager/useApiData";
 import {
   roomStatuses,
-  type PhysicalRoom,
   type PhysicalRoomInput,
   type RoomStatus,
-} from "@/lib/manager/mock";
+} from "@/lib/manager/types";
 
 const statusStyles: Record<RoomStatus, string> = {
   active: "bg-emerald-50 text-emerald-700",
@@ -25,15 +26,16 @@ export default function ManagerRoomsPage() {
     roomTypes,
     rooms,
     addRoom,
-    updateRoom,
     updateRoomStatus,
+    inventoryError,
   } = useManagerHotel();
   const [statusFilter, setStatusFilter] = useState<"all" | RoomStatus>("all");
   const [roomSearch, setRoomSearch] = useState("");
-  const [editingRoom, setEditingRoom] = useState<PhysicalRoom | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formHotelId, setFormHotelId] = useState<number | null>(null);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [statusError, setStatusError] = useState("");
 
   const hotelRooms = useMemo(
     () => rooms.filter((room) => room.hotel_id === selectedHotel.id),
@@ -57,13 +59,12 @@ export default function ManagerRoomsPage() {
   );
 
   function closeForm() {
-    setEditingRoom(null);
     setIsAdding(false);
     setFormHotelId(null);
     setFormError("");
   }
 
-  function submitRoom(event: FormEvent<HTMLFormElement>) {
+  async function submitRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (formHotelId === null) return;
 
@@ -95,7 +96,6 @@ export default function ManagerRoomsPage() {
     const duplicateRoomNumber = rooms.some(
       (room) =>
         room.hotel_id === formHotelId &&
-        room.id !== editingRoom?.id &&
         room.room_number.toLocaleLowerCase() === roomNumber.toLocaleLowerCase(),
     );
     if (duplicateRoomNumber) {
@@ -110,24 +110,30 @@ export default function ManagerRoomsPage() {
       status,
     };
 
-    if (editingRoom) {
-      updateRoom(editingRoom.id, input);
-    } else {
-      addRoom(formHotelId, input);
+    setSaving(true);
+    try {
+      await addRoom(formHotelId, input);
+      closeForm();
+    } catch (error) {
+      setFormError(describeApiError(error));
+    } finally {
+      setSaving(false);
     }
-    closeForm();
+  }
+
+  async function changeStatus(roomId: number, status: RoomStatus) {
+    setStatusError("");
+    try {
+      await updateRoomStatus(roomId, status);
+    } catch (error) {
+      setStatusError(describeApiError(error));
+    }
   }
 
   function openAddForm() {
     setFormError("");
     setFormHotelId(selectedHotel.id);
     setIsAdding(true);
-  }
-
-  function openEditForm(room: PhysicalRoom) {
-    setFormError("");
-    setFormHotelId(room.hotel_id);
-    setEditingRoom(room);
   }
 
   const formRoomTypes = roomTypes.filter(
@@ -157,6 +163,9 @@ export default function ManagerRoomsPage() {
           Add physical room
         </button>
       </header>
+
+      {inventoryError ? <ErrorNotice message={inventoryError} /> : null}
+      {statusError ? <ErrorNotice message={statusError} /> : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
@@ -213,7 +222,6 @@ export default function ManagerRoomsPage() {
                   <th className="px-5 py-3 font-medium">Room type</th>
                   <th className="px-5 py-3 font-medium">Floor</th>
                   <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -239,7 +247,7 @@ export default function ManagerRoomsPage() {
                           const status = roomStatuses.find(
                             (value) => value === event.target.value,
                           );
-                          if (status) updateRoomStatus(room.id, status);
+                          if (status) void changeStatus(room.id, status);
                         }}
                         className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold capitalize outline-none focus:ring-2 focus:ring-indigo-300 ${statusStyles[room.status]}`}
                       >
@@ -249,15 +257,6 @@ export default function ManagerRoomsPage() {
                           </option>
                         ))}
                       </select>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(room)}
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Edit
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -280,10 +279,10 @@ export default function ManagerRoomsPage() {
         )}
       </section>
 
-      {isAdding || editingRoom ? (
+      {isAdding ? (
         <ManagerModal
-          key={`${formHotelId}-${editingRoom?.id ?? "new"}`}
-          title={editingRoom ? `Edit room ${editingRoom.room_number}` : "Add physical room"}
+          key={formHotelId ?? "new"}
+          title="Add physical room"
           onClose={closeForm}
         >
           {formRoomTypes.length ? (
@@ -294,7 +293,7 @@ export default function ManagerRoomsPage() {
                   name="room_number"
                   required
                   maxLength={20}
-                  defaultValue={editingRoom?.room_number ?? ""}
+                  defaultValue=""
                   className={inputClass}
                 />
               </label>
@@ -303,7 +302,7 @@ export default function ManagerRoomsPage() {
                 <select
                   name="room_type_id"
                   required
-                  defaultValue={editingRoom?.room_type_id ?? formRoomTypes[0].id}
+                  defaultValue={formRoomTypes[0].id}
                   className={inputClass}
                 >
                   {formRoomTypes.map((roomType) => (
@@ -321,7 +320,7 @@ export default function ManagerRoomsPage() {
                   step={1}
                   min={-32768}
                   max={32767}
-                  defaultValue={editingRoom?.floor ?? ""}
+                  defaultValue=""
                   className={inputClass}
                 />
                 <span className="mt-1 block text-xs font-normal text-slate-500">
@@ -332,7 +331,7 @@ export default function ManagerRoomsPage() {
                 Status
                 <select
                   name="status"
-                  defaultValue={editingRoom?.status ?? "active"}
+                  defaultValue="active"
                   className={inputClass}
                 >
                   {roomStatuses.map((status) => (
@@ -357,15 +356,16 @@ export default function ManagerRoomsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                  disabled={saving}
+                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {editingRoom ? "Save changes" : "Add room"}
+                  {saving ? "Saving…" : "Add room"}
                 </button>
               </div>
             </form>
           ) : (
             <p className="text-sm text-slate-600">
-              Add a room type to this hotel before creating or editing a physical room.
+              Add a room type to this hotel before creating a physical room.
             </p>
           )}
         </ManagerModal>
