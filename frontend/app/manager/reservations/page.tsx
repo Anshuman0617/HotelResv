@@ -3,13 +3,16 @@
 import { useMemo, useState } from "react";
 import ManagerModal from "@/components/manager/ManagerModal";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
-import {
-  managerReservations,
-  type ManagerReservation,
-  type ReservationStatus,
-} from "@/lib/manager/mock";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError, useApiData } from "@/lib/manager/useApiData";
+import type {
+  BookingHistoryRow,
+  ReservationStatus,
+} from "@/lib/manager/types";
 
-const pageSize = 5;
+const pageSize = 10;
+/** The bookings report allows at most 100 rows per request. */
+const fetchLimit = 100;
 
 const statusStyles: Record<ReservationStatus, string> = {
   pending: "bg-amber-50 text-amber-700 ring-amber-600/20",
@@ -23,20 +26,6 @@ const currency = new Intl.NumberFormat("en-IN", {
   currency: "INR",
   maximumFractionDigits: 2,
 });
-
-function getNights(checkIn: string, checkOut: string) {
-  const start = new Date(`${checkIn}T00:00:00Z`).getTime();
-  const end = new Date(`${checkOut}T00:00:00Z`).getTime();
-  return Math.max(0, Math.round((end - start) / 86_400_000));
-}
-
-function getTotalAmount(reservation: ManagerReservation) {
-  const nights = getNights(reservation.check_in, reservation.check_out);
-  return reservation.rooms.reduce(
-    (total, room) => total + room.nightly_rate * nights,
-    0,
-  );
-}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -56,7 +45,13 @@ function formatCreatedAt(value: string) {
 }
 
 export default function ManagerReservationsPage() {
-  const { selectedHotel, hotels } = useManagerHotel();
+  const { selectedHotel } = useManagerHotel();
+  const reportsAllowed = selectedHotel.role !== "staff";
+  const bookings = useApiData<BookingHistoryRow[]>(
+    reportsAllowed
+      ? `/api/manager/hotels/${selectedHotel.id}/reports/bookings?limit=${fetchLimit}`
+      : null,
+  );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ReservationStatus>(
     "all",
@@ -65,19 +60,18 @@ export default function ManagerReservationsPage() {
   const [checkOutThrough, setCheckOutThrough] = useState("");
   const [page, setPage] = useState(1);
   const [selectedReservation, setSelectedReservation] =
-    useState<ManagerReservation | null>(null);
+    useState<BookingHistoryRow | null>(null);
 
   const filteredReservations = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
-    return managerReservations
-      .filter((reservation) => reservation.hotel_id === selectedHotel.id)
+    return (bookings.data ?? [])
       .filter((reservation) => {
         const matchesQuery =
           !normalizedQuery ||
-          String(reservation.id).includes(normalizedQuery) ||
-          reservation.guest_name.toLocaleLowerCase().includes(normalizedQuery);
+          String(reservation.booking_id).includes(normalizedQuery) ||
+          reservation.customer_name.toLocaleLowerCase().includes(normalizedQuery);
         const matchesStatus =
-          statusFilter === "all" || reservation.status === statusFilter;
+          statusFilter === "all" || reservation.booking_status === statusFilter;
         const matchesCheckIn =
           !checkInFrom || reservation.check_in >= checkInFrom;
         const matchesCheckOut =
@@ -87,7 +81,7 @@ export default function ManagerReservationsPage() {
         );
       })
       .sort((left, right) => right.created_at.localeCompare(left.created_at));
-  }, [checkInFrom, checkOutThrough, query, selectedHotel.id, statusFilter]);
+  }, [bookings.data, checkInFrom, checkOutThrough, query, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredReservations.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -95,10 +89,7 @@ export default function ManagerReservationsPage() {
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
-  const hotelNames = useMemo(
-    () => new Map(hotels.map((hotel) => [hotel.id, hotel.name])),
-    [hotels],
-  );
+  const reachedLimit = (bookings.data?.length ?? 0) >= fetchLimit;
 
   function resetPageAnd(setter: (value: string) => void, value: string) {
     setter(value);
@@ -116,13 +107,24 @@ export default function ManagerReservationsPage() {
             Reservations
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Review guest stays, booked rooms, and reservation status.
+            Booking history for this hotel from Query 2: guests, stays,
+            totals, payment and review status.
           </p>
         </div>
-        <span className="w-fit rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-          Mock reservations
-        </span>
       </header>
+
+      {!reportsAllowed ? (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Reservations include guest contact details, so only owners and
+          managers can see them.
+        </p>
+      ) : null}
+      {bookings.error ? (
+        <ErrorNotice
+          message={describeApiError(bookings.error)}
+          onRetry={bookings.reload}
+        />
+      ) : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -200,7 +202,10 @@ export default function ManagerReservationsPage() {
             </p>
           </div>
           <p className="text-xs text-slate-500">
-            Amounts are calculated from each saved nightly rate and stay length.
+            {reachedLimit
+              ? `Showing the latest ${fetchLimit} bookings. `
+              : ""}
+            Totals use each booked nightly rate × nights.
           </p>
         </div>
         {pageReservations.length ? (
@@ -211,33 +216,30 @@ export default function ManagerReservationsPage() {
                   <tr>
                     <th className="px-4 py-3 font-medium">Booking</th>
                     <th className="px-4 py-3 font-medium">Guest</th>
-                    <th className="px-4 py-3 font-medium">Hotel</th>
                     <th className="px-4 py-3 font-medium">Check-in</th>
                     <th className="px-4 py-3 font-medium">Check-out</th>
                     <th className="px-4 py-3 font-medium">Guests</th>
                     <th className="px-4 py-3 font-medium">Rooms</th>
                     <th className="px-4 py-3 text-right font-medium">Total</th>
                     <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Payment</th>
                     <th className="px-4 py-3 font-medium">Created</th>
                     <th className="px-4 py-3 text-right font-medium">Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {pageReservations.map((reservation) => (
-                    <tr key={reservation.id} className="hover:bg-slate-50/70">
+                    <tr key={reservation.booking_id} className="hover:bg-slate-50/70">
                       <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">
-                        #{reservation.id}
+                        #{reservation.booking_id}
                       </td>
                       <td className="px-4 py-4">
                         <p className="whitespace-nowrap font-medium text-slate-900">
-                          {reservation.guest_name}
+                          {reservation.customer_name}
                         </p>
                         <p className="mt-0.5 text-xs text-slate-500">
-                          {reservation.guest_email}
+                          {reservation.customer_email}
                         </p>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
-                        {hotelNames.get(reservation.hotel_id) ?? "Hotel"}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-slate-700">
                         {formatDate(reservation.check_in)}
@@ -249,13 +251,16 @@ export default function ManagerReservationsPage() {
                         {reservation.guest_count}
                       </td>
                       <td className="px-4 py-4 text-slate-700">
-                        {reservation.rooms.length}
+                        {reservation.rooms_booked}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-right font-medium text-slate-900">
-                        {currency.format(getTotalAmount(reservation))}
+                        {currency.format(Number(reservation.calculated_room_total))}
                       </td>
                       <td className="px-4 py-4">
-                        <StatusBadge status={reservation.status} />
+                        <StatusBadge status={reservation.booking_status} />
+                      </td>
+                      <td className="px-4 py-4 capitalize text-slate-700">
+                        {reservation.latest_payment_status}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-slate-600">
                         {formatCreatedAt(reservation.created_at)}
@@ -305,39 +310,40 @@ export default function ManagerReservationsPage() {
           </>
         ) : (
           <div className="px-5 py-12 text-center">
-            <p className="font-medium text-slate-900">No reservations found</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Change the search or filters to see matching bookings.
+            <p className="font-medium text-slate-900">
+              {bookings.loading && !bookings.data
+                ? "Loading reservations…"
+                : "No reservations found"}
             </p>
+            {bookings.data?.length ? (
+              <p className="mt-1 text-sm text-slate-500">
+                Change the search or filters to see matching bookings.
+              </p>
+            ) : null}
           </div>
         )}
       </section>
 
       {selectedReservation ? (
         <ManagerModal
-          title={`Reservation #${selectedReservation.id}`}
+          title={`Reservation #${selectedReservation.booking_id}`}
           onClose={() => setSelectedReservation(null)}
         >
           <div className="grid gap-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-lg font-semibold text-slate-900">
-                  {selectedReservation.guest_name}
+                  {selectedReservation.customer_name}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  {selectedReservation.guest_email}
+                  {selectedReservation.customer_email}
                 </p>
               </div>
-              <StatusBadge status={selectedReservation.status} />
+              <StatusBadge status={selectedReservation.booking_status} />
             </div>
 
             <dl className="grid gap-x-6 gap-y-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
-              <Detail
-                label="Hotel"
-                value={
-                  hotelNames.get(selectedReservation.hotel_id) ?? "Hotel"
-                }
-              />
+              <Detail label="Hotel" value={selectedReservation.hotel_name} />
               <Detail
                 label="Booking created"
                 value={formatCreatedAt(selectedReservation.created_at)}
@@ -352,7 +358,7 @@ export default function ManagerReservationsPage() {
               />
               <Detail
                 label="Stay length"
-                value={`${getNights(selectedReservation.check_in, selectedReservation.check_out)} night(s)`}
+                value={`${selectedReservation.nights} night(s)`}
               />
               <Detail
                 label="Guest count"
@@ -360,46 +366,28 @@ export default function ManagerReservationsPage() {
               />
             </dl>
 
-            <div>
-              <div className="mb-3 flex items-end justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-slate-900">Booked rooms</h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Room assignments may be pending.
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-slate-700">
-                  {currency.format(getTotalAmount(selectedReservation))}
-                </span>
-              </div>
-              <div className="divide-y divide-slate-200 rounded-lg border border-slate-200">
-                {selectedReservation.rooms.map((room) => (
-                  <div
-                    key={room.id}
-                    className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-slate-900">
-                        {room.room_type_name}
-                        {room.room_number ? ` · Room ${room.room_number}` : ""}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {room.guest_count} guest(s)
-                        {room.room_id === null ? " · Not yet assigned" : ""}
-                      </p>
-                    </div>
-                    <p className="whitespace-nowrap text-sm text-slate-700">
-                      {currency.format(room.nightly_rate)} ×{" "}
-                      {getNights(
-                        selectedReservation.check_in,
-                        selectedReservation.check_out,
-                      )}{" "}
-                      night(s)
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <dl className="grid gap-x-6 gap-y-4 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+              <Detail
+                label="Rooms booked"
+                value={String(selectedReservation.rooms_booked)}
+              />
+              <Detail
+                label="Room total"
+                value={currency.format(Number(selectedReservation.calculated_room_total))}
+              />
+              <Detail
+                label="Latest payment"
+                value={selectedReservation.latest_payment_status}
+              />
+              <Detail
+                label="Review"
+                value={
+                  selectedReservation.review_rating === null
+                    ? "Not reviewed"
+                    : `${selectedReservation.review_rating} / 5`
+                }
+              />
+            </dl>
           </div>
         </ManagerModal>
       ) : null}

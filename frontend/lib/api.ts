@@ -73,9 +73,25 @@ export async function apiFetch<T>(
     const message =
       envelope?.message ??
       (typeof detail === "string" ? detail : null) ??
+      validationMessage(detail) ??
       `Request failed with status ${response.status}`;
     throw new ApiError(message, response.status, body);
   }
 
   return envelope.data as T;
+}
+
+/**
+ * FastAPI validation errors (422) send `detail` as a list such as
+ * [{"loc": ["body", "password"], "msg": "String should have at least 8 characters"}].
+ * Turn the first entry into "Password: String should have at least 8 characters".
+ */
+function validationMessage(detail: unknown): string | null {
+  if (!Array.isArray(detail) || detail.length === 0) return null;
+  const first = detail[0] as { loc?: unknown[]; msg?: unknown };
+  if (typeof first.msg !== "string") return null;
+  const field = first.loc?.[first.loc.length - 1];
+  if (typeof field !== "string" || field === "body") return first.msg;
+  const label = field.replace(/_/g, " ");
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}: ${first.msg}`;
 }

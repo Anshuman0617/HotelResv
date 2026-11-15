@@ -3,15 +3,16 @@ from decimal import Decimal
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.hotel import Hotel, HotelMember
 from app.schemas.hotel import HotelCreate, HotelUpdate
 from app.schemas.room import AvailableRoomType
 
 
-def list_hotels(
-    db: Session,
+async def list_hotels(
+    db: AsyncSession,
     city: str | None = None,
     country: str | None = None,
     status_filter: str | None = "active",
@@ -42,12 +43,12 @@ def list_hotels(
             | func.lower(Hotel.description).like(search)
         )
 
-    return db.scalars(stmt).all()
+    return (await db.scalars(stmt)).all()
 
 
-def get_hotel(db: Session, hotel_id: int) -> Hotel:
+async def get_hotel(db: AsyncSession, hotel_id: int) -> Hotel:
     """Retrieve a single hotel with room types loaded."""
-    hotel = db.scalar(
+    hotel = await db.scalar(
         select(Hotel)
         .options(selectinload(Hotel.room_types))
         .where(Hotel.id == hotel_id)
@@ -60,7 +61,7 @@ def get_hotel(db: Session, hotel_id: int) -> Hotel:
     return hotel
 
 
-def create_hotel(db: Session, user_id: int, data: HotelCreate) -> Hotel:
+async def create_hotel(db: AsyncSession, user_id: int, data: HotelCreate) -> Hotel:
     """Register a new hotel and add the user as owner in hotel_members."""
     hotel = Hotel(
         name=data.name.strip(),
@@ -75,7 +76,7 @@ def create_hotel(db: Session, user_id: int, data: HotelCreate) -> Hotel:
         registered_by=user_id,
     )
     db.add(hotel)
-    db.flush()
+    await db.flush()
 
     # Automatically grant the creator owner membership
     membership = HotelMember(
@@ -86,10 +87,10 @@ def create_hotel(db: Session, user_id: int, data: HotelCreate) -> Hotel:
     db.add(membership)
 
     try:
-        db.commit()
-        db.refresh(hotel)
+        await db.commit()
+        await db.refresh(hotel)
     except IntegrityError as exc:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Could not create hotel due to database constraint",
@@ -98,9 +99,9 @@ def create_hotel(db: Session, user_id: int, data: HotelCreate) -> Hotel:
     return hotel
 
 
-def update_hotel(db: Session, hotel_id: int, data: HotelUpdate) -> Hotel:
+async def update_hotel(db: AsyncSession, hotel_id: int, data: HotelUpdate) -> Hotel:
     """Update hotel profile details."""
-    hotel = get_hotel(db, hotel_id)
+    hotel = await get_hotel(db, hotel_id)
 
     updates = data.model_dump(exclude_unset=True)
     for field, val in updates.items():
@@ -109,10 +110,10 @@ def update_hotel(db: Session, hotel_id: int, data: HotelUpdate) -> Hotel:
         setattr(hotel, field, val)
 
     try:
-        db.commit()
-        db.refresh(hotel)
+        await db.commit()
+        await db.refresh(hotel)
     except IntegrityError as exc:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Integrity error updating hotel",
@@ -121,8 +122,8 @@ def update_hotel(db: Session, hotel_id: int, data: HotelUpdate) -> Hotel:
     return hotel
 
 
-def search_availability(
-    db: Session,
+async def search_availability(
+    db: AsyncSession,
     hotel_id: int | None = None,
     city: str | None = None,
     check_in: date | None = None,
@@ -181,7 +182,7 @@ def search_availability(
         ORDER BY rt.base_price ASC;
     """)
 
-    results = db.execute(
+    results = (await db.execute(
         query_sql,
         {
             "hotel_id": hotel_id,
@@ -190,7 +191,7 @@ def search_availability(
             "check_out": check_out,
             "guests": guests,
         },
-    ).mappings().all()
+    )).mappings().all()
 
     return [
         AvailableRoomType(
@@ -207,13 +208,13 @@ def search_availability(
     ]
 
 
-def list_hotel_reviews(db: Session, hotel_id: int) -> dict:
+async def list_hotel_reviews(db: AsyncSession, hotel_id: int) -> dict:
     """Retrieve all verified customer reviews and aggregate rating for a hotel."""
     from app.models.review import Review
     from app.models.user import User
 
     # Ensure hotel exists
-    get_hotel(db, hotel_id)
+    await get_hotel(db, hotel_id)
 
     reviews_stmt = (
         select(Review, User.full_name)
@@ -221,7 +222,7 @@ def list_hotel_reviews(db: Session, hotel_id: int) -> dict:
         .where(Review.hotel_id == hotel_id)
         .order_by(Review.created_at.desc())
     )
-    rows = db.execute(reviews_stmt).all()
+    rows = (await db.execute(reviews_stmt)).all()
 
     items = [
         {
@@ -244,3 +245,13 @@ def list_hotel_reviews(db: Session, hotel_id: int) -> dict:
         "reviews": items,
     }
 
+
+async def list_member_hotels(db: AsyncSession, user_id: int) -> list[tuple[Hotel, str]]:
+    """Hotels the user belongs to through hotel_members, with their role."""
+    rows = (await db.execute(
+        select(Hotel, HotelMember.role)
+        .join(HotelMember, HotelMember.hotel_id == Hotel.id)
+        .where(HotelMember.user_id == user_id)
+        .order_by(Hotel.name, Hotel.id)
+    )).all()
+    return [(hotel, role) for hotel, role in rows]

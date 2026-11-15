@@ -2,12 +2,13 @@ from typing import Any
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.routers.auth import router as auth_router
 from app.routers.booking import router as booking_router
 from app.routers.hotels import router as hotels_router
+from app.routers.manager import router as manager_router
 from app.routers.reports import router as reports_router
 
 app = FastAPI(
@@ -19,6 +20,7 @@ app.include_router(auth_router)
 app.include_router(hotels_router)
 app.include_router(booking_router)
 app.include_router(reports_router)
+app.include_router(manager_router)
 
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 app.add_middleware(
@@ -40,7 +42,7 @@ def api_response(data: Any = None, message: str = "Operation successful", succes
 
 
 @app.get("/api/health", tags=["Health"])
-def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Verify API and PostgreSQL database connectivity."""
-    db.execute(text("SELECT 1"))
+    await db.execute(text("SELECT 1"))
     return api_response(data={"status": "healthy", "database": "connected"}, message="Service is healthy")

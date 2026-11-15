@@ -16,7 +16,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, gt=0, le=1440)
     CORS_ORIGINS: str = "http://localhost:3000"
-    GOOGLE_CLIENT_ID: str = ""
+
+    # Connection pool per worker process. Keep
+    # WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW) below PostgreSQL's
+    # max_connections (100 by default).
+    DB_POOL_SIZE: int = Field(default=5, ge=1, le=50)
+    DB_MAX_OVERFLOW: int = Field(default=5, ge=0, le=50)
+    DB_POOL_TIMEOUT: int = Field(default=30, ge=1, le=300)
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

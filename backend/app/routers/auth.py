@@ -1,10 +1,10 @@
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.auth import RegisterRequest, LoginRequest, GoogleOAuthRequest
-from app.services.auth_service import register_user, login_user, google_oauth_login
+from app.schemas.auth import RegisterRequest, LoginRequest
+from app.services.auth_service import register_user, login_user
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 
@@ -12,11 +12,11 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(
+async def register(
     data: RegisterRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    result = register_user(db, data)
+    result = await register_user(db, data)
 
     return {
     "success": True,
@@ -34,11 +34,11 @@ def register(
 }
     
 @router.post("/login")
-def login(
+async def login(
     data: LoginRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    result = login_user(db, data)
+    result = await login_user(db, data)
 
     return {
         "success": True,
@@ -56,7 +56,7 @@ def login(
     }
     
 @router.get("/me")
-def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(get_current_user)):
     return {
         "success": True,
         "message": "User retrieved successfully",
@@ -65,27 +65,5 @@ def get_me(current_user: User = Depends(get_current_user)):
             "full_name": current_user.full_name,
             "email": current_user.email,
             "phone": current_user.phone,
-        },
-    }
-
-
-@router.post("/google")
-def google_login(
-    data: GoogleOAuthRequest,
-    db: Session = Depends(get_db),
-):
-    result = google_oauth_login(db, data.id_token)
-    return {
-        "success": True,
-        "message": "Google login successful",
-        "data": {
-            "access_token": result["access_token"],
-            "token_type": result["token_type"],
-            "user": {
-                "id": result["user"].id,
-                "full_name": result["user"].full_name,
-                "email": result["user"].email,
-                "phone": result["user"].phone,
-            },
         },
     }

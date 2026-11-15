@@ -3,7 +3,9 @@
 import { useMemo, useState, type FormEvent } from "react";
 import ManagerModal from "@/components/manager/ManagerModal";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
-import type { RoomType, RoomTypeInput } from "@/lib/manager/mock";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError } from "@/lib/manager/useApiData";
+import type { RoomType, RoomTypeInput } from "@/lib/manager/types";
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -21,12 +23,13 @@ export default function ManagerRoomTypesPage() {
     rooms,
     addRoomType,
     updateRoomType,
-    removeRoomType,
+    inventoryError,
   } = useManagerHotel();
   const [editingRoomType, setEditingRoomType] = useState<RoomType | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formHotelId, setFormHotelId] = useState<number | null>(null);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const hotelRoomTypes = useMemo(
     () => roomTypes.filter((roomType) => roomType.hotel_id === selectedHotel.id),
@@ -43,7 +46,7 @@ export default function ManagerRoomTypesPage() {
     setFormError("");
   }
 
-  function submitRoomType(event: FormEvent<HTMLFormElement>) {
+  async function submitRoomType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const name = String(formData.get("name")).trim();
@@ -54,12 +57,12 @@ export default function ManagerRoomTypesPage() {
       !name ||
       !Number.isInteger(maxGuests) ||
       maxGuests <= 0 ||
-      maxGuests > 32767 ||
+      maxGuests > 20 ||
       !Number.isFinite(basePrice) ||
       basePrice <= 0 ||
       basePrice > 9999999999.99
     ) {
-      setFormError("Enter a name, a positive whole number of guests, and a positive base price.");
+      setFormError("Enter a name, 1–20 guests, and a positive base price.");
       return;
     }
 
@@ -80,21 +83,19 @@ export default function ManagerRoomTypesPage() {
       base_price: basePrice,
     };
 
-    if (editingRoomType) {
-      updateRoomType(editingRoomType.id, input);
-    } else {
-      if (formHotelId === null) return;
-      addRoomType(formHotelId, input);
-    }
-    closeForm();
-  }
-
-  function deleteRoomType(roomType: RoomType) {
-    if (!window.confirm(`Delete "${roomType.name}"? This cannot be undone.`)) {
-      return;
-    }
-    if (!removeRoomType(roomType.id)) {
-      window.alert("This room type is assigned to physical rooms and cannot be deleted.");
+    setSaving(true);
+    try {
+      if (editingRoomType) {
+        await updateRoomType(editingRoomType.id, input);
+      } else {
+        if (formHotelId === null) return;
+        await addRoomType(formHotelId, input);
+      }
+      closeForm();
+    } catch (error) {
+      setFormError(describeApiError(error));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -124,6 +125,8 @@ export default function ManagerRoomTypesPage() {
           Add room type
         </button>
       </header>
+
+      {inventoryError ? <ErrorNotice message={inventoryError} /> : null}
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
@@ -181,13 +184,6 @@ export default function ManagerRoomTypesPage() {
                           >
                             Edit
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteRoomType(roomType)}
-                            className="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -240,7 +236,7 @@ export default function ManagerRoomTypesPage() {
                   name="max_guests"
                   required
                   min={1}
-                  max={32767}
+                  max={20}
                   step={1}
                   defaultValue={editingRoomType?.max_guests ?? ""}
                   className={inputClass}
@@ -275,9 +271,10 @@ export default function ManagerRoomTypesPage() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                disabled={saving}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
               >
-                {editingRoomType ? "Save changes" : "Add room type"}
+                {saving ? "Saving…" : editingRoomType ? "Save changes" : "Add room type"}
               </button>
             </div>
           </form>

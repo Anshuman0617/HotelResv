@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
 import type { Hotel, RoomType } from "@/lib/types";
+
+/** The fields checkout reads from a booking response (see API_CONTRACTS.md). */
+interface BookingResult {
+  id: number;
+  status: string;
+  total: number | string;
+  payments?: { id: number }[];
+}
+
+type PaymentMethod = "card" | "upi" | "netbanking";
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -17,7 +27,6 @@ function formatPrice(n: number) {
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const hotelId = searchParams.get("hotel_id");
@@ -40,7 +49,7 @@ function CheckoutContent() {
   const [guestsPerRoom, setGuestsPerRoom] = useState(1);
 
   // Simulated Payment details
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "upi" | "netbanking">("card");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [cardNumber, setCardNumber] = useState("4532 8921 4410 8823");
   const [cardHolder, setCardHolder] = useState("");
   const [expiry, setExpiry] = useState("08/28");
@@ -119,7 +128,7 @@ function CheckoutContent() {
         ],
       };
 
-      const bookingRes = await apiFetch<any>("/api/bookings", {
+      const bookingRes = await apiFetch<BookingResult>("/api/bookings", {
         method: "POST",
         body: JSON.stringify(bookingPayload),
       });
@@ -134,7 +143,7 @@ function CheckoutContent() {
       await new Promise((res) => setTimeout(res, 700));
 
       // 3. Post payment
-      const paymentRes = await apiFetch<any>(`/api/bookings/${bookingId}/payments`, {
+      const paymentRes = await apiFetch<BookingResult>(`/api/bookings/${bookingId}/payments`, {
         method: "POST",
         body: JSON.stringify({ outcome: simulatedOutcome }),
       });
@@ -345,15 +354,15 @@ function CheckoutContent() {
 
           {/* Payment Method Selector */}
           <div className="mt-4 grid grid-cols-3 gap-3">
-            {[
+            {([
               { id: "card", label: "Card", icon: "💳" },
               { id: "upi", label: "UPI / QR", icon: "📱" },
               { id: "netbanking", label: "NetBanking", icon: "🏦" },
-            ].map((method) => (
+            ] satisfies { id: PaymentMethod; label: string; icon: string }[]).map((method) => (
               <button
                 type="button"
                 key={method.id}
-                onClick={() => setPaymentMethod(method.id as any)}
+                onClick={() => setPaymentMethod(method.id)}
                 className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm font-medium transition-all ${
                   paymentMethod === method.id
                     ? "border-indigo-600 bg-indigo-50/60 text-indigo-900 ring-2 ring-indigo-200"
