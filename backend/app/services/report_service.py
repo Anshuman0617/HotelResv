@@ -26,12 +26,10 @@ SUMMARY_SQL = text(
 BOOKINGS_SQL = text(
     """
     WITH room_totals AS (
-        SELECT br.booking_id, rt.hotel_id, COUNT(*) AS rooms_booked,
-               SUM(br.nightly_rate) AS nightly_total
-        FROM booking_rooms br
-        JOIN room_types rt ON rt.id = br.room_type_id
-        WHERE rt.hotel_id = :hotel_id
-        GROUP BY br.booking_id, rt.hotel_id
+        SELECT booking_id, COUNT(*) AS rooms_booked, SUM(nightly_rate) AS nightly_total
+        FROM booking_rooms
+        WHERE hotel_id = :hotel_id
+        GROUP BY booking_id
     )
     SELECT b.id AS booking_id, u.id AS user_id, u.full_name AS customer_name,
            u.email AS customer_email, h.id AS hotel_id, h.name AS hotel_name,
@@ -43,13 +41,14 @@ BOOKINGS_SQL = text(
            rv.rating AS review_rating
     FROM bookings b
     JOIN users u ON u.id = b.user_id
+    JOIN hotels h ON h.id = b.hotel_id
     JOIN room_totals rooms ON rooms.booking_id = b.id
-    JOIN hotels h ON h.id = rooms.hotel_id
     LEFT JOIN LATERAL (
         SELECT p.status FROM payments p WHERE p.booking_id = b.id
         ORDER BY p.created_at DESC, p.id DESC LIMIT 1
     ) latest ON TRUE
     LEFT JOIN reviews rv ON rv.booking_id = b.id
+    WHERE b.hotel_id = :hotel_id
     ORDER BY b.created_at DESC, b.id DESC
     LIMIT :limit OFFSET :offset
     """
@@ -58,21 +57,16 @@ BOOKINGS_SQL = text(
 # Query 3: monthly revenue from successful payments.
 REVENUE_SQL = text(
     """
-    WITH booking_hotel AS (
-        SELECT DISTINCT br.booking_id, rt.hotel_id
-        FROM booking_rooms br
-        JOIN room_types rt ON rt.id = br.room_type_id
-    )
     SELECT h.id AS hotel_id, h.name AS hotel_name, h.city,
            TO_CHAR(DATE_TRUNC('month', p.paid_at), 'YYYY-MM') AS revenue_month,
            COUNT(DISTINCT p.booking_id) AS paid_bookings_count,
            SUM(p.amount) AS monthly_revenue
     FROM payments p
-    JOIN booking_hotel bh ON bh.booking_id = p.booking_id
-    JOIN hotels h ON h.id = bh.hotel_id
+    JOIN bookings b ON b.id = p.booking_id
+    JOIN hotels h ON h.id = b.hotel_id
     WHERE p.status = 'successful'
       AND p.paid_at IS NOT NULL
-      AND bh.hotel_id = :hotel_id
+      AND b.hotel_id = :hotel_id
     GROUP BY h.id, h.name, h.city, DATE_TRUNC('month', p.paid_at)
     ORDER BY revenue_month DESC
     """
@@ -94,7 +88,7 @@ POPULAR_ROOM_TYPES_SQL = text(
     WHERE b.status IN ('confirmed', 'completed')
       AND h.id = :hotel_id
     GROUP BY h.id, h.name, h.city, rt.id, rt.name, rt.base_price
-    ORDER BY times_booked DESC, total_room_revenue DESC
+    ORDER BY times_booked DESC, total_room_revenue DESC, rt.id
     LIMIT 15
     """
 )
@@ -119,13 +113,7 @@ TOP_RATED_HOTELS_SQL = text(
 # Query 6: customers with more than one booking at this hotel, with spend.
 REPEAT_CUSTOMERS_SQL = text(
     """
-    WITH hotel_bookings AS (
-        SELECT DISTINCT br.booking_id
-        FROM booking_rooms br
-        JOIN room_types rt ON rt.id = br.room_type_id
-        WHERE rt.hotel_id = :hotel_id
-    ),
-    customer_booking_metrics AS (
+    WITH customer_booking_metrics AS (
         SELECT u.id AS user_id, u.full_name, u.email,
                COUNT(b.id) AS total_bookings,
                COUNT(b.id) FILTER (WHERE b.status IN ('confirmed', 'completed'))
@@ -135,7 +123,7 @@ REPEAT_CUSTOMERS_SQL = text(
                MAX(b.check_in) AS latest_check_in
         FROM users u
         JOIN bookings b ON b.user_id = u.id
-        JOIN hotel_bookings hb ON hb.booking_id = b.id
+        WHERE b.hotel_id = :hotel_id
         GROUP BY u.id, u.full_name, u.email
         HAVING COUNT(b.id) > 1
     ),
@@ -144,8 +132,8 @@ REPEAT_CUSTOMERS_SQL = text(
                COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'successful'), 0.00)
                    AS total_spend
         FROM bookings b
-        JOIN hotel_bookings hb ON hb.booking_id = b.id
         LEFT JOIN payments p ON p.booking_id = b.id
+        WHERE b.hotel_id = :hotel_id
         GROUP BY b.user_id
     )
     SELECT cbm.user_id, cbm.full_name, cbm.email, cbm.total_bookings,
@@ -196,10 +184,7 @@ PAYMENTS_SQL = text(
     FROM payments p
     JOIN bookings b ON b.id = p.booking_id
     JOIN users u ON u.id = b.user_id
-    JOIN booking_rooms br ON br.booking_id = b.id
-    JOIN room_types rt ON rt.id = br.room_type_id
-    WHERE rt.hotel_id = :hotel_id
-    GROUP BY p.id, p.booking_id, u.full_name, p.amount, p.currency, p.status, p.provider, p.created_at, p.paid_at
+    WHERE b.hotel_id = :hotel_id
     ORDER BY p.created_at DESC, p.id DESC
     """
 )
