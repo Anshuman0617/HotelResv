@@ -12,12 +12,14 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     String,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.hotel import Hotel
     from app.models.payment import Payment
     from app.models.review import Review
     from app.models.room import Room, RoomType
@@ -33,13 +35,22 @@ class Booking(Base):
             "status IN ('pending', 'confirmed', 'cancelled', 'completed')",
             name="ck_bookings_status",
         ),
+        # Target for booking_rooms' composite FK, so every line of a booking
+        # must be at the booking's hotel.
+        UniqueConstraint("id", "hotel_id", name="uq_bookings_id_hotel"),
         Index("idx_bookings_user_checkin", "user_id", "check_in"),
+        Index("idx_bookings_hotel_checkin", "hotel_id", "check_in"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    hotel_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("hotels.id", ondelete="RESTRICT"),
         nullable=False,
     )
     check_in: Mapped[date] = mapped_column(Date, nullable=False)
@@ -59,10 +70,13 @@ class Booking(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="bookings")
+    hotel: Mapped["Hotel"] = relationship("Hotel", back_populates="bookings")
     booking_rooms: Mapped[list["BookingRoom"]] = relationship(
         "BookingRoom",
         back_populates="booking",
         cascade="all, delete-orphan",
+        foreign_keys="BookingRoom.booking_id",
+        overlaps="booking_rooms",
     )
     payments: Mapped[list["Payment"]] = relationship(
         "Payment",
@@ -85,6 +99,21 @@ class BookingRoom(Base):
             name="fk_booking_rooms_room_type_match",
             ondelete="RESTRICT",
         ),
+        # booking_rooms.hotel_id is redundant with room_type_id, but these two
+        # keys pin it to both the booking's hotel and the room type's hotel,
+        # so a booking can never mix rooms from different hotels.
+        ForeignKeyConstraint(
+            ["booking_id", "hotel_id"],
+            ["bookings.id", "bookings.hotel_id"],
+            name="fk_booking_rooms_booking_hotel",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["room_type_id", "hotel_id"],
+            ["room_types.id", "room_types.hotel_id"],
+            name="fk_booking_rooms_room_type_hotel",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("nightly_rate >= 0", name="ck_booking_rooms_nightly_rate_nonneg"),
         CheckConstraint("guest_count > 0", name="ck_booking_rooms_guest_count_pos"),
         Index("idx_booking_rooms_booking_id", "booking_id"),
@@ -97,6 +126,7 @@ class BookingRoom(Base):
         ForeignKey("bookings.id", ondelete="CASCADE"),
         nullable=False,
     )
+    hotel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     room_type_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("room_types.id", ondelete="RESTRICT"),
@@ -116,7 +146,12 @@ class BookingRoom(Base):
     )
 
     # Relationships
-    booking: Mapped["Booking"] = relationship("Booking", back_populates="booking_rooms")
+    booking: Mapped["Booking"] = relationship(
+        "Booking",
+        back_populates="booking_rooms",
+        foreign_keys=[booking_id],
+        overlaps="booking_rooms",
+    )
     room_type: Mapped["RoomType"] = relationship(
         "RoomType",
         back_populates="booking_rooms",

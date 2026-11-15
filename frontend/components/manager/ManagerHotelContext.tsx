@@ -142,11 +142,11 @@ export function ManagerHotelProvider({ children }: { children: ReactNode }) {
   if (!value) {
     return (
       <ManagerGate>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <h1 className="text-lg font-semibold text-slate-900">
+        <div className="rounded-xl border border-sand-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-sand-900">
             No hotels to manage
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Your account isn&apos;t an owner, manager or staff member of any
             hotel. Ask a hotel owner to add you.
           </p>

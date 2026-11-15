@@ -1,7 +1,8 @@
+import re
 from datetime import date
 from decimal import Decimal
 from fastapi import HTTPException, status
-from sqlalchemy import func, select, text
+from sqlalchemy import bindparam, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,11 +17,13 @@ async def list_hotels(
     city: str | None = None,
     country: str | None = None,
     status_filter: str | None = "active",
-    query: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[Hotel]:
-    """Retrieve hotels with optional filtering by city, country, status, and name search."""
+    """Retrieve hotels with optional exact filters on city, country and status.
+
+    Free-text search goes through search_hotels().
+    """
     stmt = (
         select(Hotel)
         .options(selectinload(Hotel.room_types))
@@ -35,15 +38,145 @@ async def list_hotels(
         stmt = stmt.where(func.lower(Hotel.city) == city.strip().lower())
     if country:
         stmt = stmt.where(func.lower(Hotel.country) == country.strip().lower())
-    if query:
-        search = f"%{query.strip().lower()}%"
-        stmt = stmt.where(
-            func.lower(Hotel.name).like(search)
-            | func.lower(Hotel.city).like(search)
-            | func.lower(Hotel.description).like(search)
-        )
-
     return (await db.scalars(stmt)).all()
+
+
+# Words that describe almost any listing and would only add noise to matching.
+SEARCH_STOPWORDS = {
+    "a", "an", "and", "at", "for", "hotel", "hotels", "in", "near", "of",
+    "stay", "stays", "the", "to",
+}
+MAX_SEARCH_TOKENS = 8
+
+# Ranked fuzzy search over active hotels.
+#
+# Each query word (token) is scored against each hotel as the best of:
+#   * 1.0  the word starts a word in name/city/state/country (prefix match),
+#   * word_similarity() against name, city, state and country (typos),
+#   * word_similarity() against an alias of the hotel's city (bombay),
+#   * 0.6  the word starts a word in the description.
+# A hotel's score is the sum of its token scores divided by the number of
+# tokens. Only hotels matching the most tokens are kept (all of them when
+# possible), and of those only ones scoring at least 60% of the best, so one
+# strong match is not buried under weak look-alikes.
+#
+# The candidate step uses the <% operator so idx_hotels_search_text_trgm can
+# serve it; :threshold is applied through pg_trgm.word_similarity_threshold.
+FUZZY_SEARCH_SQL = text(
+    r"""
+    WITH tokens AS (
+        SELECT t FROM unnest(CAST(:tokens AS TEXT[])) AS u(t)
+    ),
+    candidates AS (
+        SELECT h.id
+        FROM hotels h JOIN tokens tk ON tk.t <% h.search_text
+        UNION
+        SELECT h.id
+        FROM hotels h
+        JOIN city_aliases a ON lower(a.city) = lower(h.city)
+        JOIN tokens tk ON tk.t <% a.alias
+    ),
+    scored AS (
+        SELECT h.id, tk.t,
+               GREATEST(
+                   CASE WHEN lower(h.name || ' ' || h.city || ' ' || coalesce(h.state, '') || ' ' || h.country)
+                             ~ ('\m' || tk.t) THEN 1.0 ELSE 0 END,
+                   word_similarity(tk.t, lower(h.name)),
+                   word_similarity(tk.t, lower(h.city)),
+                   word_similarity(tk.t, lower(coalesce(h.state, ''))),
+                   word_similarity(tk.t, lower(h.country)),
+                   COALESCE((
+                       SELECT MAX(word_similarity(tk.t, a.alias))
+                       FROM city_aliases a
+                       WHERE lower(a.city) = lower(h.city)
+                   ), 0),
+                   CASE WHEN lower(coalesce(h.description, '')) ~ ('\m' || tk.t) THEN 0.6 ELSE 0 END
+               ) AS score
+        FROM hotels h
+        JOIN candidates c ON c.id = h.id
+        CROSS JOIN tokens tk
+        WHERE h.status = :status
+          AND (CAST(:city AS TEXT) IS NULL OR lower(h.city) = lower(CAST(:city AS TEXT)))
+          AND (CAST(:country AS TEXT) IS NULL OR lower(h.country) = lower(CAST(:country AS TEXT)))
+    ),
+    per_hotel AS (
+        SELECT id,
+               COUNT(*) FILTER (WHERE score >= :threshold) AS tokens_matched,
+               SUM(score) FILTER (WHERE score >= :threshold) / :token_count AS score
+        FROM scored
+        GROUP BY id
+    ),
+    ranked AS (
+        SELECT id, tokens_matched, score,
+               MAX(tokens_matched) OVER () AS best_matched,
+               MAX(score) OVER (PARTITION BY tokens_matched) AS best_score
+        FROM per_hotel
+        WHERE tokens_matched > 0
+    )
+    SELECT id, ROUND(score::numeric, 3) AS score
+    FROM ranked
+    WHERE tokens_matched = best_matched
+      AND score >= GREATEST(:threshold, best_score * 0.6)
+    ORDER BY score DESC, id
+    LIMIT :limit OFFSET :offset
+    """
+)
+SEARCH_THRESHOLD = 0.3
+
+
+def search_tokens(query: str) -> list[str]:
+    """Split a search box query into lower-case words worth matching."""
+    words = list(dict.fromkeys(w for w in re.findall(r"\w+", query.casefold()) if len(w) >= 2))
+    meaningful = [w for w in words if w not in SEARCH_STOPWORDS]
+    # "hotel" on its own should still search for hotels named "... Hotel".
+    return (meaningful or words)[:MAX_SEARCH_TOKENS]
+
+
+async def search_hotels(
+    db: AsyncSession,
+    query: str,
+    city: str | None = None,
+    country: str | None = None,
+    status_filter: str = "active",
+    limit: int = 50,
+    offset: int = 0,
+) -> list[tuple[Hotel, float]]:
+    """Fuzzy, ranked hotel search. Returns (hotel, score) pairs, best first.
+
+    Tolerates typos ("mumbia"), word prefixes ("hyder"), several words in any
+    order ("taj mumbai") and old city names ("bombay").
+    """
+    tokens = search_tokens(query)
+    if not tokens:
+        return []
+
+    # Applies to the <% operator for the rest of this transaction only.
+    await db.execute(
+        text("SELECT set_config('pg_trgm.word_similarity_threshold', :t, true)"),
+        {"t": str(SEARCH_THRESHOLD)},
+    )
+    rows = (await db.execute(
+        FUZZY_SEARCH_SQL,
+        {
+            "tokens": tokens,
+            "token_count": len(tokens),
+            "threshold": SEARCH_THRESHOLD,
+            "status": status_filter,
+            "city": city.strip() if city else None,
+            "country": country.strip() if country else None,
+            "limit": limit,
+            "offset": offset,
+        },
+    )).all()
+    if not rows:
+        return []
+
+    scores = {row.id: float(row.score) for row in rows}
+    hotels = (await db.scalars(
+        select(Hotel).options(selectinload(Hotel.room_types)).where(Hotel.id.in_(scores))
+    )).all()
+    by_id = {hotel.id: hotel for hotel in hotels}
+    return [(by_id[hotel_id], score) for hotel_id, score in scores.items() if hotel_id in by_id]
 
 
 async def get_hotel(db: AsyncSession, hotel_id: int) -> Hotel:
@@ -126,6 +259,7 @@ async def search_availability(
     db: AsyncSession,
     hotel_id: int | None = None,
     city: str | None = None,
+    hotel_ids: list[int] | None = None,
     check_in: date | None = None,
     check_out: date | None = None,
     guests: int = 1,
@@ -148,7 +282,10 @@ async def search_availability(
         )
 
     # Core Query 1 implementation matching database/queries.sql
-    query_sql = text("""
+    # The hotel_ids clause is a fixed string added only when a list is given;
+    # the ids themselves are bound as an expanding parameter (IN (?, ?, ...)).
+    hotel_ids_clause = "AND h.id IN :hotel_ids" if hotel_ids else ""
+    query_sql = text(f"""
         SELECT
             h.id AS hotel_id,
             h.name AS hotel_name,
@@ -166,6 +303,7 @@ async def search_availability(
           -- infer the type of a bare "<param> IS NULL" (AmbiguousParameter error).
           AND (CAST(:hotel_id AS INTEGER) IS NULL OR h.id = CAST(:hotel_id AS INTEGER))
           AND (CAST(:city AS TEXT) IS NULL OR LOWER(h.city) = LOWER(CAST(:city AS TEXT)))
+          {hotel_ids_clause}
           AND r.status = 'active'
           AND rt.max_guests >= :guests
           AND NOT EXISTS (
@@ -181,17 +319,18 @@ async def search_availability(
         HAVING COUNT(r.id) > 0
         ORDER BY rt.base_price ASC;
     """)
+    params = {
+        "hotel_id": hotel_id,
+        "city": city.strip() if city else None,
+        "check_in": check_in,
+        "check_out": check_out,
+        "guests": guests,
+    }
+    if hotel_ids:
+        query_sql = query_sql.bindparams(bindparam("hotel_ids", expanding=True))
+        params["hotel_ids"] = hotel_ids
 
-    results = (await db.execute(
-        query_sql,
-        {
-            "hotel_id": hotel_id,
-            "city": city.strip() if city else None,
-            "check_in": check_in,
-            "check_out": check_out,
-            "guests": guests,
-        },
-    )).mappings().all()
+    results = (await db.execute(query_sql, params)).mappings().all()
 
     return [
         AvailableRoomType(

@@ -56,6 +56,12 @@ def test_seed_data_counts_and_integrity() -> None:
                 assert not overlap, f"Overlapping allocation on room {br['room_id']}"
             intervals.append((b["check_in"], b["check_out"]))
 
+    # Verify every booking line is at its booking's hotel and its room type's hotel
+    for br in data["booking_rooms"]:
+        b = bookings_by_id[br["booking_id"]]
+        assert br["hotel_id"] == b["hotel_id"]
+        assert br["hotel_id"] == rt_by_id[br["room_type_id"]]["hotel_id"]
+
     # Verify reviews only belong to completed bookings and match user_id & hotel_id
     for rev in data["reviews"]:
         b = bookings_by_id[rev["booking_id"]]
@@ -74,6 +80,7 @@ def test_sqlalchemy_models_metadata() -> None:
         "users",
         "hotels",
         "hotel_members",
+        "city_aliases",
         "room_types",
         "rooms",
         "bookings",

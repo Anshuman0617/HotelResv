@@ -14,7 +14,8 @@ Public endpoints allow customer hotel browsing and availability search; manageme
 
 ### Hotel endpoints
 
-- `GET /api/hotels`: List and search active hotels. Query parameters: `city`, `country`, `status` (default `active`), `search` (keyword in name, city, or description), `limit` (default 50), and `offset` (default 0). Returns array of hotels with room types.
+- `GET /api/hotels`: List and search active hotels. Query parameters: `city`, `country`, `status` (default `active`), `search`, `limit` (default 50), and `offset` (default 0). Returns array of hotels with room types.
+  - `search` is fuzzy and ranked: it tolerates typos (`mumbia`), word prefixes (`hyder`), several words in any order (`taj mumbai`) and old city names via `city_aliases` (`bombay`). Every word must match when some hotel matches them all; otherwise hotels matching the most words are returned. Results come best first, and each carries `search_score` (0–1; 1 is an exact word match). A query with no usable words (e.g. one letter) lists hotels as if `search` were absent.
 - `GET /api/hotels/{id}`: Detailed hotel profile with active room types.
 - `POST /api/hotels` (201): Register a new hotel. Requires authentication. The creator is automatically added as `owner` in `hotel_members`.
   ```json
@@ -25,7 +26,7 @@ Public endpoints allow customer hotel browsing and availability search; manageme
 
 ### Availability search (Query 1)
 
-- `GET /api/hotels/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N&city=City`: Executes Query 1 from `database/queries.sql`. Returns available hotels and room types that have unallocated physical rooms for the date range and meet minimum guest capacity, ordered by lowest price.
+- `GET /api/hotels/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N&city=City`: Optional `hotel_ids` (repeatable, up to 100) limits the result to those hotels, e.g. the hotels a search returned. Executes Query 1 from `database/queries.sql`. Returns available hotels and room types that have unallocated physical rooms for the date range and meet minimum guest capacity, ordered by lowest price.
 - `GET /api/hotels/{id}/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N`: Scoped availability check for a specific hotel.
 
 ### Room types and physical rooms

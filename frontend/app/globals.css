@@ -1,19 +1,80 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+/*
+ * Warm hospitality theme.
+ *   sand   – warm neutrals (backgrounds, text, borders)
+ *   clay   – terracotta brand colour (primary actions, links)
+ *   lagoon – teal accent (availability, success, highlights)
+ * rose and amber stay Tailwind's own, for errors and ratings/warnings.
+ */
+@theme {
+  --color-sand-50: #fbf8f3;
+  --color-sand-100: #f5efe6;
+  --color-sand-200: #e9e0d2;
+  --color-sand-300: #d8cbb8;
+  --color-sand-400: #b4a48d;
+  --color-sand-500: #8c7c66;
+  --color-sand-600: #6b5d4b;
+  --color-sand-700: #524638;
+  --color-sand-800: #3a3128;
+  --color-sand-900: #261f19;
+  --color-sand-950: #17120e;
+
+  --color-clay-50: #fcf3ee;
+  --color-clay-100: #f8e2d6;
+  --color-clay-200: #f0c2aa;
+  --color-clay-300: #e59b78;
+  --color-clay-400: #d97a52;
+  --color-clay-500: #c8613a;
+  --color-clay-600: #b04f2c;
+  --color-clay-700: #8f3f25;
+  --color-clay-800: #733423;
+  --color-clay-900: #5e2c20;
+  --color-clay-950: #33150f;
+
+  --color-lagoon-50: #eef8f6;
+  --color-lagoon-100: #d4eeea;
+  --color-lagoon-200: #a9dcd4;
+  --color-lagoon-300: #74c2b8;
+  --color-lagoon-400: #46a399;
+  --color-lagoon-500: #2e877e;
+  --color-lagoon-600: #236c66;
+  --color-lagoon-700: #1f5853;
+  --color-lagoon-800: #1c4744;
+  --color-lagoon-900: #1a3c3a;
+  --color-lagoon-950: #0a2322;
+
+  --color-background: var(--color-sand-50);
+  --color-foreground: var(--color-sand-900);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* Serif display type for page and section titles. */
+  h1,
+  h2 {
+    font-family: var(--font-heading), ui-serif, Georgia, serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-clay-500);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-clay-200);
+    color: var(--color-sand-950);
+  }
 }

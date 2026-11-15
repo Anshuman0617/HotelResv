@@ -7,6 +7,10 @@
 CREATE INDEX IF NOT EXISTS idx_hotels_city_status
     ON hotels(city, status);
 
+-- 1b. Fuzzy hotel search (pg_trgm): serves "token <% search_text"
+CREATE INDEX IF NOT EXISTS idx_hotels_search_text_trgm
+    ON hotels USING gin (search_text gin_trgm_ops);
+
 -- 2. Room type lookup by hotel
 CREATE INDEX IF NOT EXISTS idx_room_types_hotel_id
     ON room_types(hotel_id);
@@ -18,6 +22,10 @@ CREATE INDEX IF NOT EXISTS idx_rooms_hotel_type_status
 -- 4. Customer booking lookup and chronological sorting
 CREATE INDEX IF NOT EXISTS idx_bookings_user_checkin
     ON bookings(user_id, check_in);
+
+-- 4b. Hotel-scoped booking reports (manager dashboard, revenue, history)
+CREATE INDEX IF NOT EXISTS idx_bookings_hotel_checkin
+    ON bookings(hotel_id, check_in);
 
 -- 5. Booking room line lookup by parent booking
 CREATE INDEX IF NOT EXISTS idx_booking_rooms_booking_id

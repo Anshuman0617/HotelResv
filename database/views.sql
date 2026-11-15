@@ -4,33 +4,24 @@
 -- =============================================================================
 
 CREATE OR REPLACE VIEW hotel_booking_summary AS
-WITH hotel_bookings AS (
-    SELECT DISTINCT
-        rt.hotel_id,
-        b.id AS booking_id,
-        b.status AS booking_status
-    FROM bookings b
-    JOIN booking_rooms br ON br.booking_id = b.id
-    JOIN room_types rt ON rt.id = br.room_type_id
-),
-booking_counts AS (
+WITH booking_counts AS (
     SELECT
         hotel_id,
-        COUNT(booking_id) AS total_bookings,
-        COUNT(booking_id) FILTER (WHERE booking_status = 'pending') AS pending_bookings,
-        COUNT(booking_id) FILTER (WHERE booking_status = 'confirmed') AS confirmed_bookings,
-        COUNT(booking_id) FILTER (WHERE booking_status = 'completed') AS completed_bookings,
-        COUNT(booking_id) FILTER (WHERE booking_status = 'cancelled') AS cancelled_bookings
-    FROM hotel_bookings
+        COUNT(id) AS total_bookings,
+        COUNT(id) FILTER (WHERE status = 'pending') AS pending_bookings,
+        COUNT(id) FILTER (WHERE status = 'confirmed') AS confirmed_bookings,
+        COUNT(id) FILTER (WHERE status = 'completed') AS completed_bookings,
+        COUNT(id) FILTER (WHERE status = 'cancelled') AS cancelled_bookings
+    FROM bookings
     GROUP BY hotel_id
 ),
 hotel_revenue AS (
     SELECT
-        hb.hotel_id,
+        b.hotel_id,
         COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'successful'), 0.00) AS total_revenue
-    FROM hotel_bookings hb
-    LEFT JOIN payments p ON p.booking_id = hb.booking_id
-    GROUP BY hb.hotel_id
+    FROM bookings b
+    LEFT JOIN payments p ON p.booking_id = b.id
+    GROUP BY b.hotel_id
 ),
 hotel_reviews AS (
     SELECT

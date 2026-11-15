@@ -11,8 +11,8 @@ import type {
 
 const statusStyles: Record<ReservationStatus, string> = {
   pending: "bg-amber-50 text-amber-700",
-  confirmed: "bg-emerald-50 text-emerald-700",
-  completed: "bg-slate-100 text-slate-700",
+  confirmed: "bg-lagoon-50 text-lagoon-700",
+  completed: "bg-sand-100 text-sand-700",
   cancelled: "bg-rose-50 text-rose-700",
 };
 
@@ -72,10 +72,10 @@ export default function RoomHistory({
           return (
             <div
               key={booking.booking_id}
-              className="rounded-lg border border-emerald-200 bg-emerald-50 p-4"
+              className="rounded-lg border border-lagoon-200 bg-lagoon-50 p-4"
             >
               <BookingDetails booking={booking} />
-              <p className="mt-2 text-xs font-medium text-emerald-800">
+              <p className="mt-2 text-xs font-medium text-lagoon-800">
                 {left > 0
                   ? `Checks out in ${plural(left, "night")}`
                   : "Checks out today"}
@@ -99,11 +99,11 @@ export default function RoomHistory({
       </Section>
 
       {cancelled.length ? (
-        <details className="rounded-lg border border-slate-200">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-700">
+        <details className="rounded-lg border border-sand-200">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-sand-700">
             Cancelled ({cancelled.length})
           </summary>
-          <div className="flex flex-col gap-2 border-t border-slate-200 p-3">
+          <div className="flex flex-col gap-2 border-t border-sand-200 p-3">
             {cancelled.map((booking) => (
               <Row key={booking.booking_id} booking={booking} />
             ))}
@@ -125,7 +125,7 @@ function Section({
 }) {
   return (
     <section>
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-sand-500">
         {title}
         {children.length ? ` (${children.length})` : ""}
       </h3>
@@ -133,7 +133,7 @@ function Section({
         {children.length ? (
           children
         ) : (
-          <p className="text-sm text-slate-500">{empty}</p>
+          <p className="text-sm text-sand-500">{empty}</p>
         )}
       </div>
     </section>
@@ -142,7 +142,7 @@ function Section({
 
 function Row({ booking }: { booking: RoomBookingRow }) {
   return (
-    <div className="rounded-lg border border-slate-200 p-3">
+    <div className="rounded-lg border border-sand-200 p-3">
       <BookingDetails booking={booking} />
     </div>
   );
@@ -152,14 +152,14 @@ function BookingDetails({ booking }: { booking: RoomBookingRow }) {
   return (
     <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="min-w-0">
-        <p className="font-medium text-slate-900">{booking.customer_name}</p>
-        <p className="truncate text-slate-500">{booking.customer_email}</p>
+        <p className="font-medium text-sand-900">{booking.customer_name}</p>
+        <p className="truncate text-sand-500">{booking.customer_email}</p>
       </div>
-      <div className="text-slate-700 sm:text-right">
+      <div className="text-sand-700 sm:text-right">
         <p>
           {booking.check_in} → {booking.check_out}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-sand-500">
           {plural(booking.nights, "night")} · {plural(booking.guest_count, "guest")} ·{" "}
           {rupees.format(Number(booking.nightly_rate))}/night · #{booking.booking_id}
         </p>

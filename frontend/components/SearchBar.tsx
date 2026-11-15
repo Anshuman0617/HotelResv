@@ -1,7 +1,7 @@
 "use client";
 
 export interface SearchBarProps {
-  defaultCity?: string;
+  defaultQuery?: string;
   defaultCheckIn?: string;
   defaultCheckOut?: string;
   defaultGuests?: number;
@@ -17,8 +17,14 @@ function tomorrowStr() {
   return d.toISOString().slice(0, 10);
 }
 
+const fieldClass =
+  "flex flex-col gap-0.5 rounded-xl px-4 py-2.5 transition-colors focus-within:bg-sand-100 hover:bg-sand-50";
+const labelClass = "text-[11px] font-semibold uppercase tracking-[0.12em] text-sand-500";
+const inputClass =
+  "w-full bg-transparent text-[15px] font-medium text-sand-900 outline-none placeholder:font-normal placeholder:text-sand-400";
+
 export default function SearchBar({
-  defaultCity = "",
+  defaultQuery = "",
   defaultCheckIn = todayStr(),
   defaultCheckOut = tomorrowStr(),
   defaultGuests = 1,
@@ -27,54 +33,54 @@ export default function SearchBar({
     <form
       action="/hotels"
       method="GET"
-      className="grid w-full gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
+      className="grid w-full gap-1 rounded-2xl bg-white p-2 shadow-xl shadow-sand-950/10 ring-1 ring-sand-200 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_0.7fr_auto] lg:items-center"
     >
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700">Destination</span>
+      <label className={fieldClass}>
+        <span className={labelClass}>Where to?</span>
         <input
-          name="city"
-          type="text"
-          defaultValue={defaultCity}
-          placeholder="e.g. Mumbai, Chennai"
-          className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-indigo-600"
+          name="q"
+          type="search"
+          defaultValue={defaultQuery}
+          placeholder="City, hotel or area"
+          className={inputClass}
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700">Check-in</span>
+      <label className={fieldClass}>
+        <span className={labelClass}>Check-in</span>
         <input
           name="check_in"
           type="date"
           defaultValue={defaultCheckIn}
           min={todayStr()}
-          className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-indigo-600"
+          className={inputClass}
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700">Check-out</span>
+      <label className={fieldClass}>
+        <span className={labelClass}>Check-out</span>
         <input
           name="check_out"
           type="date"
           defaultValue={defaultCheckOut}
           min={todayStr()}
-          className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-indigo-600"
+          className={inputClass}
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700">Guests</span>
+      <label className={fieldClass}>
+        <span className={labelClass}>Guests</span>
         <input
           name="guests"
           type="number"
           min={1}
           max={20}
           defaultValue={defaultGuests}
-          className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-indigo-600"
+          className={inputClass}
         />
       </label>
       <button
         type="submit"
-        className="self-end rounded-md bg-indigo-600 px-4 py-2 font-medium text-white transition-colors hover:bg-indigo-700 shadow-sm"
+        className="m-1 rounded-xl bg-clay-600 px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-clay-700 sm:col-span-2 lg:col-span-1"
       >
-        Search Hotels
+        Search stays
       </button>
     </form>
   );
