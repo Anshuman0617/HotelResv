@@ -5,6 +5,17 @@
 
 export type HotelStatus = "pending" | "active" | "suspended";
 export type HotelRole = "owner" | "manager" | "staff";
+/** Roles an owner can grant; "owner" is set when the hotel is registered. */
+export type MemberRole = Exclude<HotelRole, "owner">;
+
+/** GET /api/hotels/{hotel_id}/members */
+export type HotelMember = {
+  user_id: number;
+  full_name: string;
+  email: string;
+  role: HotelRole;
+  joined_at: string;
+};
 
 export type ReservationStatus =
   | "pending"
