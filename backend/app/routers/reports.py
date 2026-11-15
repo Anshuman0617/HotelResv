@@ -59,6 +59,14 @@ async def hotel_payments(hotel_id: int, db: AsyncSession = Depends(get_db)):
     return response(await report_service.hotel_payments(db, hotel_id), "Hotel payments retrieved")
 
 
+@router.get(
+    "/hotels/{hotel_id}/rooms/occupancy",
+    dependencies=[Depends(require_hotel_role(["owner", "manager", "staff"]))],
+)
+async def room_occupancy(hotel_id: int, db: AsyncSession = Depends(get_db)):
+    """Whether each room is occupied tonight. No guest details, so staff may read it."""
+    return response(await report_service.room_occupancy(db, hotel_id, date.today()), "Room occupancy retrieved")
+
 
 @router.get("/hotels/{hotel_id}/rooms/{room_id}/bookings", dependencies=[Depends(report_access)])
 async def room_history(hotel_id: int, room_id: int, db: AsyncSession = Depends(get_db)):

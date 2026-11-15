@@ -130,7 +130,7 @@ def context():
             booking = add_booking(db, users["cust3"], [(r5, 80)], start, 1, "completed")
             db.add(Review(booking_id=booking.id, user_id=users["cust3"].id, hotel_id=c.id, rating=rating))
 
-        ids = {"a": a.id, "b": b.id, "c": c.id, "b1": b1.id, "b2": b2.id, "b3": b3.id, "r1": r1.id, "r2": r2.id, "r4": r4.id, **{n: u.id for n, u in users.items()}}
+        ids = {"a": a.id, "b": b.id, "c": c.id, "b1": b1.id, "b2": b2.id, "b3": b3.id, "r1": r1.id, "r2": r2.id, "r3": r3.id, "r4": r4.id, **{n: u.id for n, u in users.items()}}
 
     async def database():
         async with async_sessions() as db:
@@ -283,3 +283,36 @@ def test_room_history_access(context):
     assert get(path, as_user=None).status_code == 401
     # Hotel B's room can't be read through hotel A.
     assert get(f"/api/manager/hotels/{ids['a']}/rooms/{ids['r4']}/bookings").status_code == 404
+
+
+def test_room_occupancy_tonight(context):
+    get, ids, sessions = context
+    today = date.today()
+    day = lambda offset: (today + timedelta(days=offset)).isoformat()
+    with sessions.begin() as db:
+        r1, r2, r3 = (db.get(Room, ids[n]) for n in ("r1", "r2", "r3"))
+        cust2, cust3 = db.get(User, ids["cust2"]), db.get(User, ids["cust3"])
+        add_booking(db, cust2, [(r1, 100)], day(-1), 3, "confirmed")   # in room 101 until today + 2
+        add_booking(db, cust3, [(r2, 100)], day(-2), 2, "confirmed")   # left room 102 this morning
+        add_booking(db, cust2, [(r2, 100)], day(0), 2, "cancelled")    # cancelled: doesn't count
+        add_booking(db, cust3, [(r2, 100)], day(4), 1, "pending")      # next arrival in 102
+        add_booking(db, cust3, [(r3, 200)], day(0), 1, "pending")      # arrives in 201 today
+
+    response = get(f"/api/manager/hotels/{ids['a']}/rooms/occupancy")
+    assert response.status_code == 200, response.text
+    rows = {row["room_id"]: row for row in response.json()["data"]}
+    # Only hotel A's rooms.
+    assert set(rows) == {ids["r1"], ids["r2"], ids["r3"]}
+    assert rows[ids["r1"]] == {"room_id": ids["r1"], "occupied": True, "occupied_until": day(2), "next_check_in": None}
+    assert rows[ids["r2"]] == {"room_id": ids["r2"], "occupied": False, "occupied_until": None, "next_check_in": day(4)}
+    assert rows[ids["r3"]]["occupied"] is True
+
+
+def test_room_occupancy_access(context):
+    get, ids, _ = context
+    path = f"/api/manager/hotels/{ids['a']}/rooms/occupancy"
+    # No guest details in the response, so staff can see it too.
+    assert get(path, as_user="owner").status_code == 200
+    assert get(path, as_user="staff").status_code == 200
+    assert get(path, as_user="outsider").status_code == 403
+    assert get(path, as_user=None).status_code == 401
