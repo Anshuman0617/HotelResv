@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
-import { apiFetch } from "@/lib/api";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError, useApiData } from "@/lib/manager/useApiData";
 import StatCard from "@/components/manager/StatCard";
 
 interface PaymentRow {
@@ -47,70 +48,16 @@ function formatDateTime(value: string | null) {
 
 export default function ManagerPaymentsPage() {
   const { selectedHotel } = useManagerHotel();
-  const [payments, setPayments] = useState<PaymentRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const reportsAllowed = selectedHotel.role !== "staff";
+  const request = useApiData<PaymentRow[]>(
+    reportsAllowed
+      ? `/api/manager/hotels/${selectedHotel.id}/reports/payments`
+      : null,
+  );
+  const payments = useMemo(() => request.data ?? [], [request.data]);
+  const loading = request.loading && !request.data;
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    if (!selectedHotel?.id) return;
-    setLoading(true);
-
-    apiFetch<PaymentRow[]>(`/api/manager/hotels/${selectedHotel.id}/reports/payments`)
-      .then((data) => {
-        setPayments(data || []);
-      })
-      .catch(() => {
-        // Fallback default mock data
-        setPayments([
-          {
-            payment_id: 101,
-            booking_id: 11042,
-            customer_name: "Ananya Sharma",
-            amount: 25500,
-            currency: "INR",
-            payment_status: "successful",
-            provider: "simulated",
-            created_at: "2026-11-04T09:18:00Z",
-            paid_at: "2026-11-04T09:18:30Z",
-          },
-          {
-            payment_id: 102,
-            booking_id: 11038,
-            customer_name: "Rohan Mehta",
-            amount: 45400,
-            currency: "INR",
-            payment_status: "failed",
-            provider: "simulated",
-            created_at: "2026-11-03T14:42:00Z",
-            paid_at: null,
-          },
-          {
-            payment_id: 103,
-            booking_id: 11031,
-            customer_name: "Diya Nair",
-            amount: 34000,
-            currency: "INR",
-            payment_status: "successful",
-            provider: "simulated",
-            created_at: "2026-10-10T11:05:00Z",
-            paid_at: "2026-10-10T11:05:40Z",
-          },
-          {
-            payment_id: 104,
-            booking_id: 11024,
-            customer_name: "Vikram Iyer",
-            amount: 17000,
-            currency: "INR",
-            payment_status: "refunded",
-            provider: "simulated",
-            created_at: "2026-10-28T17:30:00Z",
-            paid_at: "2026-10-28T17:30:20Z",
-          },
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, [selectedHotel?.id]);
 
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
@@ -149,6 +96,18 @@ export default function ManagerPaymentsPage() {
           </p>
         </div>
       </header>
+
+      {!reportsAllowed ? (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Payments are visible to hotel owners and managers.
+        </p>
+      ) : null}
+      {request.error ? (
+        <ErrorNotice
+          message={describeApiError(request.error)}
+          onRetry={request.reload}
+        />
+      ) : null}
 
       {/* KPI Stats */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
