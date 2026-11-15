@@ -4,7 +4,7 @@ export function LoadingNotice({ label = "Loading…" }: { label?: string }) {
   return (
     <div
       role="status"
-      className="rounded-xl border border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-500 shadow-sm"
+      className="rounded-xl border border-sand-200 bg-white px-5 py-8 text-center text-sm text-sand-500 shadow-sm"
     >
       {label}
     </div>

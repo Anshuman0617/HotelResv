@@ -11,7 +11,7 @@ export default function ManagerModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-sand-950/40 p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -22,10 +22,10 @@ export default function ManagerModal({
         aria-labelledby="manager-modal-title"
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl"
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-sand-200 px-5 py-4">
           <h2
             id="manager-modal-title"
-            className="text-lg font-semibold text-slate-900"
+            className="text-lg font-semibold text-sand-900"
           >
             {title}
           </h2>
@@ -33,7 +33,7 @@ export default function ManagerModal({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            className="rounded-md px-2 py-1 text-sand-500 hover:bg-sand-100 hover:text-sand-800"
           >
             Close
           </button>
