@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import ManagerModal from "@/components/manager/ManagerModal";
+import RoomHistory from "@/components/manager/RoomHistory";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
 import { ErrorNotice } from "@/components/manager/LoadState";
 import { describeApiError } from "@/lib/manager/useApiData";
@@ -36,6 +37,10 @@ export default function ManagerRoomsPage() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [statusError, setStatusError] = useState("");
+  const [historyRoomId, setHistoryRoomId] = useState<number | null>(null);
+  // Room history shows guest contact details, which staff can't see.
+  const canViewHistory = selectedHotel.role !== "staff";
+  const historyRoom = rooms.find((room) => room.id === historyRoomId) ?? null;
 
   const hotelRooms = useMemo(
     () => rooms.filter((room) => room.hotel_id === selectedHotel.id),
@@ -222,6 +227,11 @@ export default function ManagerRoomsPage() {
                   <th className="px-5 py-3 font-medium">Room type</th>
                   <th className="px-5 py-3 font-medium">Floor</th>
                   <th className="px-5 py-3 font-medium">Status</th>
+                  {canViewHistory ? (
+                    <th className="px-5 py-3 font-medium">
+                      <span className="sr-only">Guests</span>
+                    </th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -258,6 +268,17 @@ export default function ManagerRoomsPage() {
                         ))}
                       </select>
                     </td>
+                    {canViewHistory ? (
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setHistoryRoomId(room.id)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          Guests
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -278,6 +299,15 @@ export default function ManagerRoomsPage() {
           </div>
         )}
       </section>
+
+      {historyRoom ? (
+        <ManagerModal
+          title={`Room ${historyRoom.room_number} · guests`}
+          onClose={() => setHistoryRoomId(null)}
+        >
+          <RoomHistory hotelId={selectedHotel.id} roomId={historyRoom.id} />
+        </ManagerModal>
+      ) : null}
 
       {isAdding ? (
         <ManagerModal
