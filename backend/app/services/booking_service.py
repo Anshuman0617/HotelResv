@@ -44,6 +44,13 @@ def create_booking(db: Session, user_id: int, request: BookingRequest) -> dict:
         if hotel is None or hotel.status != "active":
             raise HTTPException(status_code=404, detail="Active hotel not found")
 
+        requested = sorted(request.rooms, key=lambda item: item.room_type_id)
+        room_types = {item.id: item for item in db.scalars(select(RoomType).where(RoomType.id.in_([r.room_type_id for r in requested]), RoomType.hotel_id == request.hotel_id)).all()}
+        for item in requested:
+            room_type = room_types.get(item.room_type_id)
+            if room_type is None or item.guests_per_room > room_type.max_guests:
+                raise HTTPException(status_code=422, detail="Invalid room type or guest capacity")
+
         # Disallow double-booking: check for overlapping active bookings by the same user at this hotel
         overlapping = db.scalar(
             select(Booking.id)
@@ -64,12 +71,6 @@ def create_booking(db: Session, user_id: int, request: BookingRequest) -> dict:
                 detail="You already have an active reservation at this hotel for overlapping dates",
             )
 
-        requested = sorted(request.rooms, key=lambda item: item.room_type_id)
-        room_types = {item.id: item for item in db.scalars(select(RoomType).where(RoomType.id.in_([r.room_type_id for r in requested]), RoomType.hotel_id == request.hotel_id)).all()}
-        for item in requested:
-            room_type = room_types.get(item.room_type_id)
-            if room_type is None or item.guests_per_room > room_type.max_guests:
-                raise HTTPException(status_code=422, detail="Invalid room type or guest capacity")
         candidates = db.scalars(select(Room).where(Room.hotel_id == request.hotel_id, Room.room_type_id.in_(room_types), Room.status == "active").order_by(Room.id).with_for_update()).all()
         occupied = set(db.scalars(select(BookingRoom.room_id).join(Booking, Booking.id == BookingRoom.booking_id).where(BookingRoom.room_id.in_([r.id for r in candidates]), Booking.status.in_(["pending", "confirmed"]), Booking.check_in < request.check_out, Booking.check_out > request.check_in)).all())
         booking = Booking(user_id=user_id, check_in=request.check_in, check_out=request.check_out, guest_count=sum(r.quantity * r.guests_per_room for r in requested), status="pending")
