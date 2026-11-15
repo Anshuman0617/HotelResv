@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 
@@ -36,7 +37,10 @@ export default function Home() {
         <h2 className="text-xl font-semibold text-slate-900">
           Search by destination and dates
         </h2>
-        <SearchBar />
+        {/* SearchBar defaults to today's dates, so render it per request. */}
+        <Suspense fallback={<div className="h-24 w-full animate-pulse rounded-xl bg-slate-100" />}>
+          <SearchBar />
+        </Suspense>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
