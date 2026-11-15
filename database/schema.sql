@@ -4,6 +4,7 @@
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS citext;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- trigram similarity for fuzzy hotel search
 
 -- Drop existing objects in reverse dependency order for clean re-initialization
 DROP VIEW IF EXISTS hotel_booking_summary;
@@ -14,6 +15,7 @@ DROP TABLE IF EXISTS bookings CASCADE;
 DROP TABLE IF EXISTS rooms CASCADE;
 DROP TABLE IF EXISTS room_types CASCADE;
 DROP TABLE IF EXISTS hotel_members CASCADE;
+DROP TABLE IF EXISTS city_aliases CASCADE;
 DROP TABLE IF EXISTS hotels CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -45,9 +47,42 @@ CREATE TABLE hotels (
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',
     registered_by   BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Lower-cased text for fuzzy search; generated, so it cannot drift
+    search_text     TEXT NOT NULL GENERATED ALWAYS AS (
+        lower(name || ' ' || city || ' ' || coalesce(state, '') || ' '
+              || country || ' ' || coalesce(description, ''))
+    ) STORED,
     CONSTRAINT ck_hotels_status
         CHECK (status IN ('pending', 'active', 'suspended'))
 );
+
+-- =============================================================================
+-- 2b. Table: city_aliases (reference data for search: bombay -> Mumbai)
+-- =============================================================================
+CREATE TABLE city_aliases (
+    alias           VARCHAR(100) PRIMARY KEY,
+    city            VARCHAR(100) NOT NULL,
+    CONSTRAINT ck_city_aliases_lowercase
+        CHECK (alias = lower(alias))
+);
+
+INSERT INTO city_aliases (alias, city) VALUES
+    ('bangalore', 'Bengaluru'),
+    ('bombay', 'Mumbai'),
+    ('madras', 'Chennai'),
+    ('calcutta', 'Kolkata'),
+    ('delhi', 'New Delhi'),
+    ('simla', 'Shimla'),
+    ('gurgaon', 'Gurugram'),
+    ('poona', 'Pune'),
+    ('mysore', 'Mysuru'),
+    ('mangalore', 'Mangaluru'),
+    ('cochin', 'Kochi'),
+    ('trivandrum', 'Thiruvananthapuram'),
+    ('pondicherry', 'Puducherry'),
+    ('baroda', 'Vadodara'),
+    ('benares', 'Varanasi'),
+    ('banaras', 'Varanasi');
 
 -- =============================================================================
 -- 3. Table: hotel_members

@@ -7,6 +7,10 @@
 CREATE INDEX IF NOT EXISTS idx_hotels_city_status
     ON hotels(city, status);
 
+-- 1b. Fuzzy hotel search (pg_trgm): serves "token <% search_text"
+CREATE INDEX IF NOT EXISTS idx_hotels_search_text_trgm
+    ON hotels USING gin (search_text gin_trgm_ops);
+
 -- 2. Room type lookup by hotel
 CREATE INDEX IF NOT EXISTS idx_room_types_hotel_id
     ON room_types(hotel_id);

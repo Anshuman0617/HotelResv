@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import BigInteger, CheckConstraint, Computed, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -11,6 +11,12 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+SEARCH_TEXT_SQL = (
+    "lower(name || ' ' || city || ' ' || coalesce(state, '') || ' ' "
+    "|| country || ' ' || coalesce(description, ''))"
+)
+
+
 class Hotel(Base):
     __tablename__ = "hotels"
     __table_args__ = (
@@ -19,6 +25,13 @@ class Hotel(Base):
             name="ck_hotels_status",
         ),
         Index("idx_hotels_city_status", "city", "status"),
+        # Trigram index for fuzzy search (needs the pg_trgm extension).
+        Index(
+            "idx_hotels_search_text_trgm",
+            "search_text",
+            postgresql_using="gin",
+            postgresql_ops={"search_text": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -45,6 +58,13 @@ class Hotel(Base):
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+    # Lower-cased text the fuzzy search matches against. Generated and stored
+    # by PostgreSQL, so it can never drift from the columns it is built from.
+    search_text: Mapped[str] = mapped_column(
+        Text,
+        Computed(SEARCH_TEXT_SQL, persisted=True),
+        nullable=False,
     )
 
     # Relationships
@@ -107,3 +127,16 @@ class HotelMember(Base):
     # Relationships
     hotel: Mapped["Hotel"] = relationship("Hotel", back_populates="members")
     user: Mapped["User"] = relationship("User", back_populates="hotel_memberships")
+
+
+class CityAlias(Base):
+    """Other names for a city (Bombay -> Mumbai), so search finds old or
+    alternative spellings that share too few letters for fuzzy matching."""
+
+    __tablename__ = "city_aliases"
+    __table_args__ = (
+        CheckConstraint("alias = lower(alias)", name="ck_city_aliases_lowercase"),
+    )
+
+    alias: Mapped[str] = mapped_column(String(100), primary_key=True)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)

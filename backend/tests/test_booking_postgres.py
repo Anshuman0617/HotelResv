@@ -35,6 +35,7 @@ def context():
     schema = "booking_test_" + uuid.uuid4().hex
     with admin.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS citext"))
+        connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     search_path = {"options": f"-csearch_path={schema},public"}
     engine = create_engine(url, connect_args=search_path)
