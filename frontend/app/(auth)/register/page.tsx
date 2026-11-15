@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import AuthShell from "@/components/AuthShell";
 
 /* ------------------------------------------------------------------ */
 /*  Register Page                                                       */
@@ -50,16 +51,18 @@ export default function RegisterPage() {
 
 
   const inputClass =
-    "mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+    "mt-1.5 w-full rounded-xl border border-sand-300 bg-white px-4 py-3 text-sm text-sand-900 outline-none transition focus:border-clay-500 focus:ring-4 focus:ring-clay-100";
   const primaryBtn =
-    "rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 w-full disabled:opacity-50";
+    "w-full rounded-full bg-clay-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-clay-700 disabled:opacity-50";
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-4 py-16">
-      <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Create an account</h1>
+    <AuthShell
+      title="Create your account"
+      subtitle="Book stays, track reservations and leave reviews."
+      imageId={7}
+    >
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           {error && (
             <p role="alert" className="text-sm text-rose-700">
               {error}
@@ -67,7 +70,7 @@ export default function RegisterPage() {
           )}
 
           <div>
-            <label htmlFor="full_name" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="full_name" className="block text-sm font-medium text-sand-700">
               Full name
             </label>
             <input
@@ -84,7 +87,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="email" className="block text-sm font-medium text-sand-700">
               Email
             </label>
             <input
@@ -99,7 +102,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="block text-sm font-medium text-sand-700">
               Password
             </label>
             <input
@@ -113,15 +116,15 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
-            <p id="password-hint" className="mt-1 text-xs text-slate-500">
+            <p id="password-hint" className="mt-1 text-xs text-sand-500">
               At least 8 characters.
             </p>
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="phone" className="block text-sm font-medium text-sand-700">
               Phone{" "}
-              <span className="text-slate-400">(optional)</span>
+              <span className="text-sand-400">(optional)</span>
             </label>
             <input
               id="phone"
@@ -139,13 +142,12 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-sand-600">
           Already registered?{" "}
-          <Link href="/login" className="font-medium text-indigo-700 hover:underline">
+          <Link href="/login" className="font-medium text-clay-700 hover:underline">
             Sign in
           </Link>
         </p>
-      </section>
-    </main>
+    </AuthShell>
   );
 }

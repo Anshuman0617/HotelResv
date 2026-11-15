@@ -68,11 +68,11 @@ export default function ManagerReviewsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-700">Reputation Management</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <p className="text-sm font-medium text-clay-700">Reputation Management</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Guest Reviews & Feedback
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Monitor customer satisfaction, ratings breakdown, and feedback for {selectedHotel.name}.
           </p>
         </div>
@@ -112,8 +112,8 @@ export default function ManagerReviewsPage() {
       {/* Rating Breakdown & Filter Section */}
       <section className="grid gap-6 lg:grid-cols-3">
         {/* Rating Breakdown card */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-          <h3 className="font-semibold text-sm text-slate-900">Rating Distribution</h3>
+        <div className="rounded-xl border border-sand-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="font-semibold text-sm text-sand-900">Rating Distribution</h3>
           <div className="space-y-2 pt-2">
             {[5, 4, 3, 2, 1].map((star) => {
               const count = ratingCounts[star] || 0;
@@ -123,17 +123,17 @@ export default function ManagerReviewsPage() {
                   key={star}
                   onClick={() => setRatingFilter(ratingFilter === star ? null : star)}
                   className={`w-full flex items-center gap-3 text-xs p-1.5 rounded-md transition-colors ${
-                    ratingFilter === star ? "bg-amber-50 font-bold" : "hover:bg-slate-50"
+                    ratingFilter === star ? "bg-amber-50 font-bold" : "hover:bg-sand-50"
                   }`}
                 >
-                  <span className="w-12 text-slate-700 text-left">{star} stars</span>
-                  <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <span className="w-12 text-sand-700 text-left">{star} stars</span>
+                  <div className="flex-1 h-2 rounded-full bg-sand-100 overflow-hidden">
                     <div
                       className="h-full bg-amber-400 rounded-full"
                       style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <span className="w-6 text-slate-400 text-right">{count}</span>
+                  <span className="w-6 text-sand-400 text-right">{count}</span>
                 </button>
               );
             })}
@@ -141,7 +141,7 @@ export default function ManagerReviewsPage() {
           {ratingFilter !== null && (
             <button
               onClick={() => setRatingFilter(null)}
-              className="text-xs text-indigo-600 hover:underline pt-2 inline-block"
+              className="text-xs text-clay-600 hover:underline pt-2 inline-block"
             >
               Show all reviews
             </button>
@@ -149,36 +149,36 @@ export default function ManagerReviewsPage() {
         </div>
 
         {/* Reviews Feed */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <h3 className="font-semibold text-slate-900">
+        <div className="rounded-xl border border-sand-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-sand-100 pb-4">
+            <h3 className="font-semibold text-sand-900">
               Customer Comments {ratingFilter !== null ? `(${ratingFilter} Stars)` : `(${filteredReviews.length})`}
             </h3>
-            <span className="text-xs text-slate-400">Verified Stays</span>
+            <span className="text-xs text-sand-400">Verified Stays</span>
           </div>
 
           {loading ? (
-            <div className="p-8 text-center text-sm text-slate-500 animate-pulse">
+            <div className="p-8 text-center text-sm text-sand-500 animate-pulse">
               Loading reviews...
             </div>
           ) : filteredReviews.length === 0 ? (
-            <div className="p-10 text-center text-sm text-slate-500">
+            <div className="p-10 text-center text-sm text-sand-500">
               No reviews found matching the selected filter.
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-sand-100">
               {filteredReviews.map((rev) => (
                 <div key={rev.id} className="py-4 first:pt-4 last:pb-0 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-slate-900">{rev.user_name}</span>
-                    <span className="text-xs text-slate-400">{formatDate(rev.created_at)}</span>
+                    <span className="font-semibold text-sm text-sand-900">{rev.user_name}</span>
+                    <span className="text-xs text-sand-400">{formatDate(rev.created_at)}</span>
                   </div>
                   <div className="flex items-center text-amber-400 text-sm">
                     {"★".repeat(rev.rating)}
-                    <span className="text-slate-200">{"★".repeat(5 - rev.rating)}</span>
+                    <span className="text-sand-200">{"★".repeat(5 - rev.rating)}</span>
                   </div>
                   {rev.comment && (
-                    <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                    <p className="text-sm text-sand-600 leading-relaxed bg-sand-50/50 p-3 rounded-lg border border-sand-100">
                       &ldquo;{rev.comment}&rdquo;
                     </p>
                   )}

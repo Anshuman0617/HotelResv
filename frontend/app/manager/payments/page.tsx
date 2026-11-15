@@ -25,10 +25,10 @@ const currencyFormat = new Intl.NumberFormat("en-IN", {
 });
 
 const statusStyles: Record<string, string> = {
-  successful: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  successful: "bg-lagoon-50 text-lagoon-700 ring-lagoon-600/20",
   refunded: "bg-amber-50 text-amber-700 ring-amber-600/20",
   failed: "bg-rose-50 text-rose-700 ring-rose-600/20",
-  initiated: "bg-slate-100 text-slate-700 ring-slate-500/20",
+  initiated: "bg-sand-100 text-sand-700 ring-sand-500/20",
 };
 
 function formatDateTime(value: string | null) {
@@ -87,18 +87,18 @@ export default function ManagerPaymentsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-700">Financial Ledger</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <p className="text-sm font-medium text-clay-700">Financial Ledger</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Payments & Transactions
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Audit payment receipts, simulated settlements, and refunds for {selectedHotel.name}.
           </p>
         </div>
       </header>
 
       {!reportsAllowed ? (
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <p className="rounded-lg border border-sand-200 bg-white px-4 py-3 text-sm text-sand-600">
           Payments are visible to hotel owners and managers.
         </p>
       ) : null}
@@ -134,8 +134,8 @@ export default function ManagerPaymentsPage() {
       </section>
 
       {/* Filter and Table Card */}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-sand-200 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {["all", "successful", "refunded", "failed"].map((status) => (
               <button
@@ -143,8 +143,8 @@ export default function ManagerPaymentsPage() {
                 onClick={() => setStatusFilter(status)}
                 className={`rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
                   statusFilter === status
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-clay-600 text-white shadow-sm"
+                    : "bg-sand-100 text-sand-600 hover:bg-sand-200"
                 }`}
               >
                 {status}
@@ -158,23 +158,23 @@ export default function ManagerPaymentsPage() {
               placeholder="Search guest or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-sand-300 px-3 py-1.5 text-xs text-sand-900 outline-none focus:border-clay-500 focus:ring-1 focus:ring-clay-500"
             />
           </div>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-sm text-slate-500 animate-pulse">
+          <div className="p-8 text-center text-sm text-sand-500 animate-pulse">
             Loading payments ledger...
           </div>
         ) : filteredPayments.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500">
+          <div className="p-10 text-center text-sm text-sand-500">
             No payments found matching the selected filter.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
                 <tr>
                   <th className="px-5 py-3 font-medium">Payment ID</th>
                   <th className="px-5 py-3 font-medium">Booking</th>
@@ -185,34 +185,34 @@ export default function ManagerPaymentsPage() {
                   <th className="px-5 py-3 font-medium text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-sand-100">
                 {filteredPayments.map((payment) => (
-                  <tr key={payment.payment_id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-3 font-mono text-xs font-semibold text-slate-900">
+                  <tr key={payment.payment_id} className="hover:bg-sand-50/50">
+                    <td className="px-5 py-3 font-mono text-xs font-semibold text-sand-900">
                       PAY-{payment.payment_id}
                     </td>
-                    <td className="px-5 py-3 text-slate-700">
+                    <td className="px-5 py-3 text-sand-700">
                       #{payment.booking_id}
                     </td>
-                    <td className="px-5 py-3 font-medium text-slate-900">
+                    <td className="px-5 py-3 font-medium text-sand-900">
                       {payment.customer_name}
                     </td>
-                    <td className="px-5 py-3 text-xs text-slate-500 capitalize">
+                    <td className="px-5 py-3 text-xs text-sand-500 capitalize">
                       {payment.provider}
                     </td>
-                    <td className="px-5 py-3 text-xs text-slate-600 whitespace-nowrap">
+                    <td className="px-5 py-3 text-xs text-sand-600 whitespace-nowrap">
                       {formatDateTime(payment.paid_at || payment.created_at)}
                     </td>
                     <td className="px-5 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${
-                          statusStyles[payment.payment_status] || "bg-slate-100 text-slate-700"
+                          statusStyles[payment.payment_status] || "bg-sand-100 text-sand-700"
                         }`}
                       >
                         {payment.payment_status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right font-bold text-slate-900">
+                    <td className="px-5 py-3 text-right font-bold text-sand-900">
                       {currencyFormat.format(Number(payment.amount))}
                     </td>
                   </tr>

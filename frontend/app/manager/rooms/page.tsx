@@ -13,13 +13,13 @@ import {
 } from "@/lib/manager/types";
 
 const statusStyles: Record<RoomStatus, string> = {
-  active: "bg-emerald-50 text-emerald-700",
+  active: "bg-lagoon-50 text-lagoon-700",
   maintenance: "bg-amber-50 text-amber-700",
-  inactive: "bg-slate-100 text-slate-700",
+  inactive: "bg-sand-100 text-sand-700",
 };
 
 const inputClass =
-  "mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+  "mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100";
 
 export default function ManagerRoomsPage() {
   const {
@@ -149,13 +149,13 @@ export default function ManagerRoomsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-700">
+          <p className="text-sm font-medium text-clay-700">
             {selectedHotel.name}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Physical rooms
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Track room numbers, categories, floors, and operational status.
           </p>
         </div>
@@ -163,7 +163,7 @@ export default function ManagerRoomsPage() {
           type="button"
           onClick={openAddForm}
           disabled={!hotelRoomTypes.length}
-          className="rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-clay-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-clay-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add physical room
         </button>
@@ -172,9 +172,9 @@ export default function ManagerRoomsPage() {
       {inventoryError ? <ErrorNotice message={inventoryError} /> : null}
       {statusError ? <ErrorNotice message={statusError} /> : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-sand-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Search room number
             <input
               type="search"
@@ -184,7 +184,7 @@ export default function ManagerRoomsPage() {
               className={inputClass}
             />
           </label>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Filter by status
             <select
               value={statusFilter}
@@ -211,17 +211,17 @@ export default function ManagerRoomsPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="font-semibold text-slate-900">Room inventory</h2>
-          <p className="mt-1 text-sm text-slate-500">
+      <section className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
+        <div className="border-b border-sand-200 px-5 py-4">
+          <h2 className="font-semibold text-sand-900">Room inventory</h2>
+          <p className="mt-1 text-sm text-sand-500">
             Showing {visibleRooms.length} of {hotelRooms.length} rooms
           </p>
         </div>
         {visibleRooms.length ? (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
                 <tr>
                   <th className="px-5 py-3 font-medium">Room number</th>
                   <th className="px-5 py-3 font-medium">Room type</th>
@@ -234,16 +234,16 @@ export default function ManagerRoomsPage() {
                   ) : null}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-sand-100">
                 {visibleRooms.map((room) => (
                   <tr key={room.id}>
-                    <td className="px-5 py-4 font-medium text-slate-900">
+                    <td className="px-5 py-4 font-medium text-sand-900">
                       {room.room_number}
                     </td>
-                    <td className="px-5 py-4 text-slate-700">
+                    <td className="px-5 py-4 text-sand-700">
                       {typeNames.get(room.room_type_id) ?? "Unknown room type"}
                     </td>
-                    <td className="px-5 py-4 text-slate-700">
+                    <td className="px-5 py-4 text-sand-700">
                       {room.floor ?? "—"}
                     </td>
                     <td className="px-5 py-4">
@@ -259,7 +259,7 @@ export default function ManagerRoomsPage() {
                           );
                           if (status) void changeStatus(room.id, status);
                         }}
-                        className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold capitalize outline-none focus:ring-2 focus:ring-indigo-300 ${statusStyles[room.status]}`}
+                        className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold capitalize outline-none focus:ring-2 focus:ring-clay-300 ${statusStyles[room.status]}`}
                       >
                         {roomStatuses.map((status) => (
                           <option key={status} value={status}>
@@ -273,7 +273,7 @@ export default function ManagerRoomsPage() {
                         <button
                           type="button"
                           onClick={() => setHistoryRoomId(room.id)}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-sand-300 px-3 py-1.5 text-xs font-medium text-sand-700 hover:bg-sand-50"
                         >
                           Guests
                         </button>
@@ -286,10 +286,10 @@ export default function ManagerRoomsPage() {
           </div>
         ) : (
           <div className="px-5 py-12 text-center">
-            <p className="font-medium text-slate-900">
+            <p className="font-medium text-sand-900">
               {hotelRooms.length ? "No rooms match those filters" : "No physical rooms yet"}
             </p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-sand-500">
               {hotelRooms.length
                 ? "Try a different room number or status."
                 : hotelRoomTypes.length
@@ -317,7 +317,7 @@ export default function ManagerRoomsPage() {
         >
           {formRoomTypes.length ? (
             <form onSubmit={submitRoom} className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-sand-700">
                 Room number
                 <input
                   name="room_number"
@@ -327,7 +327,7 @@ export default function ManagerRoomsPage() {
                   className={inputClass}
                 />
               </label>
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-sand-700">
                 Room type
                 <select
                   name="room_type_id"
@@ -342,7 +342,7 @@ export default function ManagerRoomsPage() {
                   ))}
                 </select>
               </label>
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-sand-700">
                 Floor
                 <input
                   name="floor"
@@ -353,11 +353,11 @@ export default function ManagerRoomsPage() {
                   defaultValue=""
                   className={inputClass}
                 />
-                <span className="mt-1 block text-xs font-normal text-slate-500">
+                <span className="mt-1 block text-xs font-normal text-sand-500">
                   Leave blank if the floor does not apply.
                 </span>
               </label>
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-sand-700">
                 Status
                 <select
                   name="status"
@@ -376,25 +376,25 @@ export default function ManagerRoomsPage() {
                   {formError}
                 </p>
               ) : null}
-              <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 sm:col-span-2">
+              <div className="flex justify-end gap-3 border-t border-sand-200 pt-4 sm:col-span-2">
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-sand-300 px-4 py-2 text-sm font-medium text-sand-700 hover:bg-sand-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="rounded-md bg-clay-600 px-4 py-2 text-sm font-semibold text-white hover:bg-clay-700 disabled:opacity-50"
                 >
                   {saving ? "Saving…" : "Add room"}
                 </button>
               </div>
             </form>
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-sand-600">
               Add a room type to this hotel before creating a physical room.
             </p>
           )}

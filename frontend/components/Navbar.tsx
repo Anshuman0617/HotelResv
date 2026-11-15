@@ -1,73 +1,140 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 const links = [
-  { href: "/hotels", label: "Hotels" },
-  { href: "/bookings", label: "My Bookings" },
-  { href: "/manager", label: "Manager" },
+  { href: "/hotels", label: "Stays" },
+  { href: "/bookings", label: "My bookings" },
+  { href: "/manager", label: "Manage" },
 ];
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function NavLink({
+  href,
+  label,
+  active,
+  compact = false,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
+        compact ? "inline-block" : "hidden sm:inline-block"
+      } ${
+        active
+          ? "bg-sand-200/70 text-sand-900"
+          : "text-sand-600 hover:bg-sand-100 hover:text-sand-900"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+/** Reads the URL to highlight the current section, so it renders inside Suspense. */
+function ActiveNavLinks({ compact = false }: { compact?: boolean }) {
+  const pathname = usePathname();
+  return links.map((link) => (
+    <NavLink
+      key={link.href}
+      {...link}
+      compact={compact}
+      active={pathname === link.href || pathname.startsWith(`${link.href}/`)}
+    />
+  ));
+}
 
 export default function Navbar() {
   const { user, loading, logout } = useAuth();
 
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="text-lg font-semibold text-indigo-700">
-          HotelResv
+    <header className="sticky top-0 z-50 border-b border-sand-200/80 bg-sand-50/90 backdrop-blur">
+      <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="grid h-8 w-8 place-items-center rounded-full bg-clay-600 font-display text-lg leading-none text-white"
+          >
+            H
+          </span>
+          <span className="font-display text-xl font-semibold tracking-tight text-sand-900">
+            HotelResv
+          </span>
         </Link>
-        <div className="flex items-center gap-4 text-sm">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-slate-600 transition-colors hover:text-indigo-700"
-            >
-              {link.label}
-            </Link>
-          ))}
 
-          {/* Auth area */}
+        <div className="flex items-center gap-1 text-sm sm:gap-2">
+          <Suspense
+            fallback={links.map((link) => (
+              <NavLink key={link.href} {...link} active={false} />
+            ))}
+          >
+            <ActiveNavLinks />
+          </Suspense>
+
+          <span aria-hidden className="mx-1 hidden h-5 w-px bg-sand-200 sm:block" />
+
           {loading ? (
-            /* skeleton */
-            <div className="h-8 w-32 animate-pulse rounded-md bg-slate-100" />
+            <div className="h-9 w-28 animate-pulse rounded-full bg-sand-100" />
           ) : user ? (
-            <>
+            <div className="flex items-center gap-2">
               <span
-                className="max-w-[160px] truncate text-sm font-medium text-slate-700"
+                className="grid h-9 w-9 place-items-center rounded-full bg-lagoon-600 text-xs font-semibold text-white"
                 title={user.full_name}
               >
-                {user.full_name.length > 20
-                  ? user.full_name.slice(0, 20) + "…"
-                  : user.full_name}
+                {initials(user.full_name)}
               </span>
               <button
                 onClick={logout}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 transition-colors hover:border-rose-400 hover:text-rose-600"
+                className="rounded-full px-3 py-1.5 font-medium text-sand-600 transition-colors hover:bg-sand-100 hover:text-sand-900"
               >
                 Sign out
               </button>
-            </>
+            </div>
           ) : (
             <>
               <Link
                 href="/login"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 transition-colors hover:border-indigo-600 hover:text-indigo-700"
+                className="rounded-full px-3 py-1.5 font-medium text-sand-700 transition-colors hover:bg-sand-100"
               >
                 Sign in
               </Link>
               <Link
                 href="/register"
-                className="rounded-md bg-indigo-600 px-3 py-1.5 text-white transition-colors hover:bg-indigo-700"
+                className="rounded-full bg-sand-900 px-4 py-1.5 font-medium text-sand-50 transition-colors hover:bg-clay-700"
               >
-                Register
+                Join
               </Link>
             </>
           )}
         </div>
       </nav>
+      {/* Phones: the section links get their own row under the bar. */}
+      <div className="flex gap-1 overflow-x-auto px-3 pb-2 text-sm sm:hidden">
+        <Suspense
+          fallback={links.map((link) => (
+            <NavLink key={link.href} {...link} active={false} compact />
+          ))}
+        >
+          <ActiveNavLinks compact />
+        </Suspense>
+      </div>
     </header>
   );
 }

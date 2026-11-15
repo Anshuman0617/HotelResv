@@ -16,9 +16,9 @@ const fetchLimit = 100;
 
 const statusStyles: Record<ReservationStatus, string> = {
   pending: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  confirmed: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
-  cancelled: "bg-slate-100 text-slate-600 ring-slate-500/20",
-  completed: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  confirmed: "bg-lagoon-50 text-lagoon-700 ring-lagoon-600/20",
+  cancelled: "bg-sand-100 text-sand-600 ring-sand-500/20",
+  completed: "bg-lagoon-50 text-lagoon-700 ring-lagoon-600/20",
 };
 
 const currency = new Intl.NumberFormat("en-IN", {
@@ -100,13 +100,13 @@ export default function ManagerReservationsPage() {
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-700">
+          <p className="text-sm font-medium text-clay-700">
             {selectedHotel.name}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Reservations
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Booking history for this hotel from Query 2: guests, stays,
             totals, payment and review status.
           </p>
@@ -114,7 +114,7 @@ export default function ManagerReservationsPage() {
       </header>
 
       {!reportsAllowed ? (
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <p className="rounded-lg border border-sand-200 bg-white px-4 py-3 text-sm text-sand-600">
           Reservations include guest contact details, so only owners and
           managers can see them.
         </p>
@@ -126,9 +126,9 @@ export default function ManagerReservationsPage() {
         />
       ) : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-sand-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Search booking or guest
             <input
               type="search"
@@ -138,10 +138,10 @@ export default function ManagerReservationsPage() {
                 setPage(1);
               }}
               placeholder="Booking ID or guest name"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="mt-1 w-full rounded-md border border-sand-300 px-3 py-2 text-sm font-normal normal-case text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100"
             />
           </label>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Booking status
             <select
               value={statusFilter}
@@ -158,7 +158,7 @@ export default function ManagerReservationsPage() {
                   setPage(1);
                 }
               }}
-              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm font-normal normal-case text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100"
             >
               <option value="all">All statuses</option>
               <option value="pending">Pending</option>
@@ -167,7 +167,7 @@ export default function ManagerReservationsPage() {
               <option value="completed">Completed</option>
             </select>
           </label>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Check-in from
             <input
               type="date"
@@ -175,10 +175,10 @@ export default function ManagerReservationsPage() {
               onChange={(event) =>
                 resetPageAnd(setCheckInFrom, event.target.value)
               }
-              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm font-normal normal-case text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100"
             />
           </label>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Check-out through
             <input
               type="date"
@@ -186,22 +186,22 @@ export default function ManagerReservationsPage() {
               onChange={(event) =>
                 resetPageAnd(setCheckOutThrough, event.target.value)
               }
-              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm font-normal normal-case text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100"
             />
           </label>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-1 border-b border-sand-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-slate-900">Booking list</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="font-semibold text-sand-900">Booking list</h2>
+            <p className="mt-1 text-sm text-sand-500">
               {filteredReservations.length} reservation
               {filteredReservations.length === 1 ? "" : "s"} for {selectedHotel.name}
             </p>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-sand-500">
             {reachedLimit
               ? `Showing the latest ${fetchLimit} bookings. `
               : ""}
@@ -212,7 +212,7 @@ export default function ManagerReservationsPage() {
           <>
             <div className="overflow-x-auto">
               <table className="min-w-[1100px] w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
                   <tr>
                     <th className="px-4 py-3 font-medium">Booking</th>
                     <th className="px-4 py-3 font-medium">Guest</th>
@@ -227,49 +227,49 @@ export default function ManagerReservationsPage() {
                     <th className="px-4 py-3 text-right font-medium">Details</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-sand-100">
                   {pageReservations.map((reservation) => (
-                    <tr key={reservation.booking_id} className="hover:bg-slate-50/70">
-                      <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">
+                    <tr key={reservation.booking_id} className="hover:bg-sand-50/70">
+                      <td className="whitespace-nowrap px-4 py-4 font-semibold text-sand-900">
                         #{reservation.booking_id}
                       </td>
                       <td className="px-4 py-4">
-                        <p className="whitespace-nowrap font-medium text-slate-900">
+                        <p className="whitespace-nowrap font-medium text-sand-900">
                           {reservation.customer_name}
                         </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-sand-500">
                           {reservation.customer_email}
                         </p>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                      <td className="whitespace-nowrap px-4 py-4 text-sand-700">
                         {formatDate(reservation.check_in)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                      <td className="whitespace-nowrap px-4 py-4 text-sand-700">
                         {formatDate(reservation.check_out)}
                       </td>
-                      <td className="px-4 py-4 text-slate-700">
+                      <td className="px-4 py-4 text-sand-700">
                         {reservation.guest_count}
                       </td>
-                      <td className="px-4 py-4 text-slate-700">
+                      <td className="px-4 py-4 text-sand-700">
                         {reservation.rooms_booked}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-right font-medium text-slate-900">
+                      <td className="whitespace-nowrap px-4 py-4 text-right font-medium text-sand-900">
                         {currency.format(Number(reservation.calculated_room_total))}
                       </td>
                       <td className="px-4 py-4">
                         <StatusBadge status={reservation.booking_status} />
                       </td>
-                      <td className="px-4 py-4 capitalize text-slate-700">
+                      <td className="px-4 py-4 capitalize text-sand-700">
                         {reservation.latest_payment_status}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-600">
+                      <td className="whitespace-nowrap px-4 py-4 text-sand-600">
                         {formatCreatedAt(reservation.created_at)}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <button
                           type="button"
                           onClick={() => setSelectedReservation(reservation)}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-white"
+                          className="rounded-md border border-sand-300 px-3 py-1.5 text-xs font-semibold text-sand-700 hover:bg-white"
                         >
                           View
                         </button>
@@ -279,8 +279,8 @@ export default function ManagerReservationsPage() {
                 </tbody>
               </table>
             </div>
-            <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-slate-500">
+            <div className="flex flex-col gap-3 border-t border-sand-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-sand-500">
                 Showing {(currentPage - 1) * pageSize + 1}–
                 {Math.min(currentPage * pageSize, filteredReservations.length)}{" "}
                 of {filteredReservations.length}
@@ -290,18 +290,18 @@ export default function ManagerReservationsPage() {
                   type="button"
                   disabled={currentPage === 1}
                   onClick={() => setPage(currentPage - 1)}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-md border border-sand-300 px-3 py-1.5 text-sm font-medium text-sand-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Previous
                 </button>
-                <span className="min-w-20 text-center text-sm text-slate-600">
+                <span className="min-w-20 text-center text-sm text-sand-600">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={currentPage === totalPages}
                   onClick={() => setPage(currentPage + 1)}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-md border border-sand-300 px-3 py-1.5 text-sm font-medium text-sand-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -310,13 +310,13 @@ export default function ManagerReservationsPage() {
           </>
         ) : (
           <div className="px-5 py-12 text-center">
-            <p className="font-medium text-slate-900">
+            <p className="font-medium text-sand-900">
               {bookings.loading && !bookings.data
                 ? "Loading reservations…"
                 : "No reservations found"}
             </p>
             {bookings.data?.length ? (
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-sand-500">
                 Change the search or filters to see matching bookings.
               </p>
             ) : null}
@@ -332,17 +332,17 @@ export default function ManagerReservationsPage() {
           <div className="grid gap-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-lg font-semibold text-slate-900">
+                <p className="text-lg font-semibold text-sand-900">
                   {selectedReservation.customer_name}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-sand-600">
                   {selectedReservation.customer_email}
                 </p>
               </div>
               <StatusBadge status={selectedReservation.booking_status} />
             </div>
 
-            <dl className="grid gap-x-6 gap-y-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
+            <dl className="grid gap-x-6 gap-y-4 rounded-lg bg-sand-50 p-4 sm:grid-cols-2">
               <Detail label="Hotel" value={selectedReservation.hotel_name} />
               <Detail
                 label="Booking created"
@@ -366,7 +366,7 @@ export default function ManagerReservationsPage() {
               />
             </dl>
 
-            <dl className="grid gap-x-6 gap-y-4 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+            <dl className="grid gap-x-6 gap-y-4 rounded-lg border border-sand-200 p-4 sm:grid-cols-2">
               <Detail
                 label="Rooms booked"
                 value={String(selectedReservation.rooms_booked)}
@@ -408,10 +408,10 @@ function StatusBadge({ status }: { status: ReservationStatus }) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-sand-500">
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-slate-800">{value}</dd>
+      <dd className="mt-1 text-sm text-sand-800">{value}</dd>
     </div>
   );
 }
