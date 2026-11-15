@@ -2,7 +2,7 @@ from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
@@ -22,57 +22,57 @@ def response(data: Any, message: str) -> dict[str, Any]:
 
 
 @router.get("/hotels/{hotel_id}/reports/summary", dependencies=[Depends(report_access)])
-def hotel_summary(hotel_id: int, db: Session = Depends(get_db)):
-    data = report_service.summary(db, hotel_id)
+async def hotel_summary(hotel_id: int, db: AsyncSession = Depends(get_db)):
+    data = await report_service.summary(db, hotel_id)
     if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hotel not found")
     return response(data, "Hotel summary retrieved")
 
 
 @router.get("/hotels/{hotel_id}/reports/bookings", dependencies=[Depends(report_access)])
-def hotel_bookings(
+async def hotel_bookings(
     hotel_id: int,
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    return response(report_service.bookings(db, hotel_id, limit, offset), "Booking history retrieved")
+    return response(await report_service.bookings(db, hotel_id, limit, offset), "Booking history retrieved")
 
 
 @router.get("/hotels/{hotel_id}/reports/revenue", dependencies=[Depends(report_access)])
-def hotel_revenue(hotel_id: int, db: Session = Depends(get_db)):
-    return response(report_service.monthly_revenue(db, hotel_id), "Monthly revenue retrieved")
+async def hotel_revenue(hotel_id: int, db: AsyncSession = Depends(get_db)):
+    return response(await report_service.monthly_revenue(db, hotel_id), "Monthly revenue retrieved")
 
 
 @router.get("/hotels/{hotel_id}/reports/popular-room-types", dependencies=[Depends(report_access)])
-def hotel_popular_room_types(hotel_id: int, db: Session = Depends(get_db)):
-    return response(report_service.popular_room_types(db, hotel_id), "Popular room types retrieved")
+async def hotel_popular_room_types(hotel_id: int, db: AsyncSession = Depends(get_db)):
+    return response(await report_service.popular_room_types(db, hotel_id), "Popular room types retrieved")
 
 
 @router.get("/hotels/{hotel_id}/reports/repeat-customers", dependencies=[Depends(report_access)])
-def hotel_repeat_customers(hotel_id: int, db: Session = Depends(get_db)):
-    return response(report_service.repeat_customers(db, hotel_id), "Repeat customers retrieved")
+async def hotel_repeat_customers(hotel_id: int, db: AsyncSession = Depends(get_db)):
+    return response(await report_service.repeat_customers(db, hotel_id), "Repeat customers retrieved")
 
 
 @router.get("/hotels/{hotel_id}/reports/payments", dependencies=[Depends(report_access)])
-def hotel_payments(hotel_id: int, db: Session = Depends(get_db)):
-    return response(report_service.hotel_payments(db, hotel_id), "Hotel payments retrieved")
+async def hotel_payments(hotel_id: int, db: AsyncSession = Depends(get_db)):
+    return response(await report_service.hotel_payments(db, hotel_id), "Hotel payments retrieved")
 
 
 
 @router.get("/hotels/{hotel_id}/rooms/{room_id}/bookings", dependencies=[Depends(report_access)])
-def room_history(hotel_id: int, room_id: int, db: Session = Depends(get_db)):
+async def room_history(hotel_id: int, room_id: int, db: AsyncSession = Depends(get_db)):
     """Past, current and upcoming bookings assigned to one physical room."""
     # get_room 404s unless the room belongs to this hotel, so a manager can't
     # read another hotel's room by guessing its id.
-    room = room_service.get_room(db, hotel_id, room_id)
+    room = await room_service.get_room(db, hotel_id, room_id)
     data = {
         "room": RoomResponse.model_validate(room).model_dump(mode="json"),
-        "bookings": report_service.room_bookings(db, room.id, date.today()),
+        "bookings": await report_service.room_bookings(db, room.id, date.today()),
     }
     return response(data, "Room history retrieved")
 
 
 @router.get("/reports/top-rated-hotels")
-def top_rated_hotels(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
-    return response(report_service.top_rated_hotels(db), "Top-rated hotels retrieved")
+async def top_rated_hotels(db: AsyncSession = Depends(get_db), _user: User = Depends(get_current_user)):
+    return response(await report_service.top_rated_hotels(db), "Top-rated hotels retrieved")

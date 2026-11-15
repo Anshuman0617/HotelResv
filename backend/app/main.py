@@ -2,7 +2,7 @@ from typing import Any
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.routers.auth import router as auth_router
@@ -42,7 +42,7 @@ def api_response(data: Any = None, message: str = "Operation successful", succes
 
 
 @app.get("/api/health", tags=["Health"])
-def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Verify API and PostgreSQL database connectivity."""
-    db.execute(text("SELECT 1"))
+    await db.execute(text("SELECT 1"))
     return api_response(data={"status": "healthy", "database": "connected"}, message="Service is healthy")

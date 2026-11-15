@@ -2,7 +2,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
@@ -11,9 +11,9 @@ from app.models.user import User
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
 
     # 1. Check whether a Bearer token was provided
@@ -42,7 +42,7 @@ def get_current_user(
         )
 
     # 3. Fetch the user from PostgreSQL
-    user = db.get(User, user_id)
+    user = await db.get(User, user_id)
 
     if user is None:
         raise HTTPException(

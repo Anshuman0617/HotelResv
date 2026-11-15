@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -86,15 +87,22 @@ def test_room_type_and_room_schema_validation():
 # -----------------------------------------------------------------------------
 
 
+# The services are async, so these tests run on anyio's pytest plugin
+# (installed with FastAPI) against SQLite through aiosqlite.
+pytestmark = pytest.mark.anyio
+
+
 @pytest.fixture
-def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
+async def db_session():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    SessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_commit=False)
     db = SessionLocal()
 
     # Create dummy user
@@ -105,17 +113,17 @@ def db_session():
         phone="9876543210",
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     try:
         yield db, user
     finally:
-        db.close()
-        Base.metadata.drop_all(engine)
+        await db.close()
+        await engine.dispose()
 
 
-def test_hotel_crud_service(db_session):
+async def test_hotel_crud_service(db_session):
     db, user = db_session
 
     # 1. Create hotel
@@ -127,40 +135,42 @@ def test_hotel_crud_service(db_session):
         country="India",
         timezone="Asia/Kolkata",
     )
-    hotel = hotel_service.create_hotel(db, user_id=user.id, data=hotel_in)
+    hotel = await hotel_service.create_hotel(db, user_id=user.id, data=hotel_in)
     assert hotel.id is not None
     assert hotel.registered_by == user.id
     assert hotel.status == "active"
 
     # Verify hotel_members automatically added user as owner
-    membership = db.query(HotelMember).filter_by(hotel_id=hotel.id, user_id=user.id).first()
+    membership = await db.scalar(
+        select(HotelMember).where(HotelMember.hotel_id == hotel.id, HotelMember.user_id == user.id)
+    )
     assert membership is not None
     assert membership.role == "owner"
 
     # 2. Get hotel
-    fetched = hotel_service.get_hotel(db, hotel.id)
+    fetched = await hotel_service.get_hotel(db, hotel.id)
     assert fetched.name == "The Taj Gateway"
 
     # 3. Update hotel
-    updated = hotel_service.update_hotel(
+    updated = await hotel_service.update_hotel(
         db, hotel.id, HotelUpdate(description="Updated description", city="North Goa")
     )
     assert updated.city == "North Goa"
     assert updated.description == "Updated description"
 
     # 4. List hotels with filter
-    hotels = hotel_service.list_hotels(db, city="North Goa")
+    hotels = await hotel_service.list_hotels(db, city="North Goa")
     assert len(hotels) == 1
     assert hotels[0].id == hotel.id
 
-    no_hotels = hotel_service.list_hotels(db, city="Kolkata")
+    no_hotels = await hotel_service.list_hotels(db, city="Kolkata")
     assert len(no_hotels) == 0
 
 
-def test_room_and_room_type_crud(db_session):
+async def test_room_and_room_type_crud(db_session):
     db, user = db_session
 
-    hotel = hotel_service.create_hotel(
+    hotel = await hotel_service.create_hotel(
         db,
         user_id=user.id,
         data=HotelCreate(
@@ -173,17 +183,17 @@ def test_room_and_room_type_crud(db_session):
 
     # 1. Create RoomType
     rt_in = RoomTypeCreate(name="Superior", max_guests=3, base_price=Decimal("2500.00"))
-    rt = room_service.create_room_type(db, hotel_id=hotel.id, data=rt_in)
+    rt = await room_service.create_room_type(db, hotel_id=hotel.id, data=rt_in)
     assert rt.id is not None
     assert rt.name == "Superior"
 
     # Duplicate room type name in same hotel should fail with 409
     with pytest.raises(HTTPException) as exc_info:
-        room_service.create_room_type(db, hotel_id=hotel.id, data=rt_in)
+        await room_service.create_room_type(db, hotel_id=hotel.id, data=rt_in)
     assert exc_info.value.status_code == 409
 
     # 2. Create Physical Rooms
-    r1 = room_service.create_room(
+    r1 = await room_service.create_room(
         db,
         hotel_id=hotel.id,
         data=RoomCreate(room_type_id=rt.id, room_number="101", floor=1, status="active"),
@@ -193,7 +203,7 @@ def test_room_and_room_type_crud(db_session):
 
     # Duplicate room number in same hotel should fail with 409
     with pytest.raises(HTTPException) as exc_info:
-        room_service.create_room(
+        await room_service.create_room(
             db,
             hotel_id=hotel.id,
             data=RoomCreate(room_type_id=rt.id, room_number="101", floor=1),
@@ -201,24 +211,24 @@ def test_room_and_room_type_crud(db_session):
     assert exc_info.value.status_code == 409
 
     # 3. Update Room Status
-    updated_room = room_service.update_room_status(
+    updated_room = await room_service.update_room_status(
         db, hotel_id=hotel.id, room_id=r1.id, new_status="maintenance"
     )
     assert updated_room.status == "maintenance"
 
     # 4. List rooms
-    rooms = room_service.list_rooms(db, hotel_id=hotel.id, status_filter="maintenance")
+    rooms = await room_service.list_rooms(db, hotel_id=hotel.id, status_filter="maintenance")
     assert len(rooms) == 1
     assert rooms[0].room_number == "101"
 
 
-def test_availability_date_validation(db_session):
+async def test_availability_date_validation(db_session):
     db, user = db_session
 
     # check_out must be after check_in
     today = date.today()
     with pytest.raises(HTTPException) as exc_info:
-        hotel_service.search_availability(
+        await hotel_service.search_availability(
             db,
             hotel_id=1,
             check_in=today,
@@ -233,8 +243,7 @@ def test_availability_date_validation(db_session):
 # -----------------------------------------------------------------------------
 
 
-def test_api_endpoints_workflow(db_session):
-    from fastapi.testclient import TestClient
+async def test_api_endpoints_workflow(db_session):
     from app.main import app
     from app.database import get_db
     from app.dependencies.auth import get_current_user
@@ -243,7 +252,7 @@ def test_api_endpoints_workflow(db_session):
 
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: owner_user
-    client = TestClient(app)
+    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
     try:
         # 1. Register a hotel via POST /api/hotels
@@ -255,19 +264,19 @@ def test_api_endpoints_workflow(db_session):
             "country": "India",
             "timezone": "Asia/Kolkata",
         }
-        res = client.post("/api/hotels", json=reg_payload)
+        res = await client.post("/api/hotels", json=reg_payload)
         assert res.status_code == 201, res.text
         hotel_data = res.json()["data"]
         hotel_id = hotel_data["id"]
         assert hotel_data["name"] == "Seaside Resort"
 
         # 2. Get hotel details via GET /api/hotels/{id}
-        res = client.get(f"/api/hotels/{hotel_id}")
+        res = await client.get(f"/api/hotels/{hotel_id}")
         assert res.status_code == 200
         assert res.json()["data"]["city"] == "Chennai"
 
         # 3. List hotels with search filter
-        res = client.get("/api/hotels?city=Chennai")
+        res = await client.get("/api/hotels?city=Chennai")
         assert res.status_code == 200
         assert len(res.json()["data"]) == 1
 
@@ -278,12 +287,12 @@ def test_api_endpoints_workflow(db_session):
             "max_guests": 2,
             "base_price": 5000.0,
         }
-        res = client.post(f"/api/hotels/{hotel_id}/room-types", json=rt_payload)
+        res = await client.post(f"/api/hotels/{hotel_id}/room-types", json=rt_payload)
         assert res.status_code == 201
         rt_id = res.json()["data"]["id"]
 
         # 5. List room types via GET /api/hotels/{id}/room-types
-        res = client.get(f"/api/hotels/{hotel_id}/room-types")
+        res = await client.get(f"/api/hotels/{hotel_id}/room-types")
         assert res.status_code == 200
         assert len(res.json()["data"]) == 1
         assert res.json()["data"][0]["name"] == "Ocean Deluxe"
@@ -295,18 +304,18 @@ def test_api_endpoints_workflow(db_session):
             "floor": 5,
             "status": "active",
         }
-        res = client.post(f"/api/hotels/{hotel_id}/rooms", json=room_payload)
+        res = await client.post(f"/api/hotels/{hotel_id}/rooms", json=room_payload)
         assert res.status_code == 201
         room_id = res.json()["data"]["id"]
 
         # 7. List physical rooms via GET /api/hotels/{id}/rooms
-        res = client.get(f"/api/hotels/{hotel_id}/rooms")
+        res = await client.get(f"/api/hotels/{hotel_id}/rooms")
         assert res.status_code == 200
         assert len(res.json()["data"]) == 1
         assert res.json()["data"][0]["room_number"] == "501"
 
         # 8. Update room status via PATCH /api/hotels/{id}/rooms/{room_id}/status
-        res = client.patch(
+        res = await client.patch(
             f"/api/hotels/{hotel_id}/rooms/{room_id}/status",
             json={"status": "maintenance"},
         )
@@ -316,16 +325,16 @@ def test_api_endpoints_workflow(db_session):
         # 9. Test Query 1 availability search
         check_in = (date.today() + timedelta(days=5)).isoformat()
         check_out = (date.today() + timedelta(days=7)).isoformat()
-        res = client.get(
+        res = await client.get(
             f"/api/hotels/availability?check_in={check_in}&check_out={check_out}&guests=2"
         )
         assert res.status_code == 200
     finally:
+        await client.aclose()
         app.dependency_overrides.clear()
 
 
-def test_public_hotel_routes_hide_non_active_hotels(db_session):
-    from fastapi.testclient import TestClient
+async def test_public_hotel_routes_hide_non_active_hotels(db_session):
     from app.main import app
     from app.database import get_db
 
@@ -340,7 +349,7 @@ def test_public_hotel_routes_hide_non_active_hotels(db_session):
         registered_by=user.id,
     )
     db.add(hotel)
-    db.flush()
+    await db.flush()
     room_type = RoomType(
         hotel_id=hotel.id,
         name="Standard",
@@ -348,19 +357,20 @@ def test_public_hotel_routes_hide_non_active_hotels(db_session):
         base_price=Decimal("100.00"),
     )
     db.add(room_type)
-    db.commit()
+    await db.commit()
 
     app.dependency_overrides[get_db] = lambda: db
-    client = TestClient(app)
+    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
     try:
-        listed = client.get("/api/hotels")
+        listed = await client.get("/api/hotels")
         assert listed.status_code == 200
         assert all(item["id"] != hotel.id for item in listed.json()["data"])
-        assert client.get("/api/hotels?status=pending").status_code == 422
-        assert client.get("/api/hotels?status=").status_code == 422
-        assert client.get(f"/api/hotels/{hotel.id}").status_code == 404
-        assert client.get(f"/api/hotels/{hotel.id}/room-types").status_code == 404
+        assert (await client.get("/api/hotels?status=pending")).status_code == 422
+        assert (await client.get("/api/hotels?status=")).status_code == 422
+        assert (await client.get(f"/api/hotels/{hotel.id}")).status_code == 404
+        assert (await client.get(f"/api/hotels/{hotel.id}/room-types")).status_code == 404
     finally:
+        await client.aclose()
         app.dependency_overrides.clear()
 
 

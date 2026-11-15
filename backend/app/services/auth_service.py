@@ -2,10 +2,11 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+from fastapi.concurrency import run_in_threadpool
 from jose import jwt
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.user import User
@@ -30,9 +31,9 @@ def create_access_token(user_id: int) -> str:
     )
 
 
-def register_user(db: Session, data: RegisterRequest) -> dict:
+async def register_user(db: AsyncSession, data: RegisterRequest) -> dict:
     # 1. Check whether the email already exists
-    existing_user = db.scalar(
+    existing_user = await db.scalar(
         select(User).where(User.email == data.email)
     )
 
@@ -42,21 +43,23 @@ def register_user(db: Session, data: RegisterRequest) -> dict:
             detail="Email is already registered",
         )
 
-    # 2. Hash the password
+    # 2. Hash the password. bcrypt is deliberately slow CPU work, so it runs in
+    # a thread instead of blocking the event loop for every other request.
+    password_hash = await run_in_threadpool(hash_password, data.password)
     user = User(
         full_name=data.full_name,
         email=data.email,
-        password_hash=hash_password(data.password),
+        password_hash=password_hash,
         phone=data.phone,
     )
 
     # 3. Save the user
     try:
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
     except IntegrityError:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email is already registered",
@@ -73,14 +76,15 @@ def register_user(db: Session, data: RegisterRequest) -> dict:
     }
 
 
-def login_user(db: Session, data: LoginRequest) -> dict:
+async def login_user(db: AsyncSession, data: LoginRequest) -> dict:
     # 1. Find user by email
-    user = db.scalar(
+    user = await db.scalar(
         select(User).where(User.email == data.email)
     )
 
-    # 2. Verify credentials
-    if not user or not verify_password(
+    # 2. Verify credentials (bcrypt runs in a thread, like hashing above)
+    if not user or not await run_in_threadpool(
+        verify_password,
         data.password,
         user.password_hash,
     ):

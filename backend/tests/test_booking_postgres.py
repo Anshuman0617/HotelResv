@@ -11,6 +11,8 @@ from fastapi import Header
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -34,7 +36,12 @@ def context():
     with admin.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS citext"))
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-    engine = create_engine(url, connect_args={"options": f"-csearch_path={schema},public"})
+    search_path = {"options": f"-csearch_path={schema},public"}
+    engine = create_engine(url, connect_args=search_path)
+    # The app uses an async engine. NullPool: TestClient runs requests on its
+    # own event loop, and pooled async connections must not outlive that loop.
+    async_engine = create_async_engine(url, connect_args=search_path, poolclass=NullPool)
+    async_sessions = async_sessionmaker(async_engine, autoflush=False, expire_on_commit=False)
     # checkfirst=False: search_path includes public, so the default existence
     # check would find the real tables there and skip creating them in the
     # test schema, sending test rows into public.
@@ -52,8 +59,8 @@ def context():
         db.flush()
         db.add_all([Room(hotel_id=hotel.id, room_type_id=types[0].id, room_number="1", status="active"), Room(hotel_id=hotel.id, room_type_id=types[1].id, room_number="2", status="active")])
         ids = (hotel.id, types[0].id, types[1].id, users[0].id, users[1].id)
-    def database():
-        with sessions() as db:
+    async def database():
+        async with async_sessions() as db:
             yield db
     current_user = {"id": ids[3]}
     def user(x_test_user: int | None = Header(default=None)):
@@ -64,6 +71,7 @@ def context():
         yield client, sessions, ids, current_user
     app.dependency_overrides.clear()
     engine.dispose()
+    async_engine.sync_engine.dispose()
     with admin.begin() as connection:
         connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
     admin.dispose()
