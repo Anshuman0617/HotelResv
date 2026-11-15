@@ -45,21 +45,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      return Boolean(getToken());
-    }
-    return false;
-  });
+  // Start as loading on both server and client: the server can't see the
+  // stored token, so deciding from localStorage here would render different
+  // HTML in the browser and cause a hydration mismatch.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    apiFetch<User>("/api/auth/me")
+    // Without a token there is nothing to check; resolving through the same
+    // promise chain keeps every state update out of the effect body.
+    const restore = getToken()
+      ? apiFetch<User>("/api/auth/me")
+      : Promise.resolve(null);
+    restore
       .then((me) => {
         if (!cancelled) setUser(me);
       })
