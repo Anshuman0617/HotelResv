@@ -27,10 +27,13 @@ def booking_data(db: Session, booking: Booking) -> dict:
     rooms = db.execute(select(BookingRoom, RoomType, Room).join(RoomType, BookingRoom.room_type_id == RoomType.id).outerjoin(Room, BookingRoom.room_id == Room.id).where(BookingRoom.booking_id == booking.id).order_by(BookingRoom.id)).all()
     payments = db.scalars(select(Payment).where(Payment.booking_id == booking.id).order_by(Payment.created_at.desc(), Payment.id.desc())).all()
     review = db.scalar(select(Review).where(Review.booking_id == booking.id))
+    hotel = db.get(Hotel, rooms[0][1].hotel_id) if rooms else None
     return {
         "id": booking.id, "check_in": booking.check_in, "check_out": booking.check_out,
         "guest_count": booking.guest_count, "status": booking.status, "created_at": booking.created_at,
-        "hotel_id": rooms[0][1].hotel_id if rooms else None,
+        "hotel_id": hotel.id if hotel else None,
+        "hotel_name": hotel.name if hotel else None,
+        "hotel_city": hotel.city if hotel else None,
         "total": sum((item.nightly_rate * (booking.check_out - booking.check_in).days for item, _, _ in rooms), Decimal("0")),
         "rooms": [{"room_type_id": rt.id, "room_type_name": rt.name, "room_id": room.id if room else None, "room_number": room.room_number if room else None, "guest_count": item.guest_count, "nightly_rate": item.nightly_rate} for item, rt, room in rooms],
         "payments": [{"id": p.id, "amount": p.amount, "currency": p.currency, "status": p.status, "created_at": p.created_at, "paid_at": p.paid_at} for p in payments],

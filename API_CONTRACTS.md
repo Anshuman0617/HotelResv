@@ -54,7 +54,7 @@ Each type occurs once; quantities and guests per room are positive, each room mu
 - `POST /api/bookings/{id}/cancel`: pending or confirmed bookings can be cancelled before check-in; successful payments become `refunded`. Returns the booking.
 - `POST /api/bookings/{id}/complete`: Checks out of a confirmed booking so the guest can review it. Check-in night must have passed (409 otherwise); checking out early shortens `check_out` to today. Returns the updated booking.
 
-A booking object contains `id`, `hotel_id`, `check_in`, `check_out`, `guest_count`, `status`, `created_at`, `total`, `rooms`, `payments`, and `review` (null when absent). Each room has `room_type_id`, `room_type_name`, `room_id`, `room_number`, `guest_count`, and `nightly_rate`. Payment entries have `id`, `amount`, `currency`, `status`, `created_at`, and `paid_at`, newest first. A review has `id`, `rating`, and `comment`.
+A booking object contains `id`, `hotel_id`, `hotel_name`, `hotel_city`, `check_in`, `check_out`, `guest_count`, `status`, `created_at`, `total`, `rooms`, `payments`, and `review` (null when absent). Each room has `room_type_id`, `room_type_name`, `room_id`, `room_number`, `guest_count`, and `nightly_rate`. Payment entries have `id`, `amount`, `currency`, `status`, `created_at`, and `paid_at`, newest first. A review has `id`, `rating`, and `comment`.
 
 ## Payments and reviews
 

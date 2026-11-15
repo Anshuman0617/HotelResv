@@ -108,6 +108,9 @@ def test_payments_ownership_cancellation_and_review(context):
     client, sessions, ids, user = context
     created = client.post("/api/bookings", json=request(ids)).json()["data"]
     booking_id = created["id"]
+    assert (created["hotel_id"], created["hotel_name"], created["hotel_city"]) == (ids[0], "Hotel", "City")
+    listed = client.get("/api/bookings").json()["data"]
+    assert [(b["id"], b["hotel_name"]) for b in listed] == [(booking_id, "Hotel")]
     user["id"] = ids[4]
     for method, suffix, body in [("get", "", None), ("post", "/cancel", None), ("post", "/payments", {"outcome": "successful"}), ("post", "/reviews", {"rating": 5})]:
         response = getattr(client, method)(f"/api/bookings/{booking_id}{suffix}", **({"json": body} if body else {}))
