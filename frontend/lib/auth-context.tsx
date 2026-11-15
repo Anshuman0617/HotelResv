@@ -40,14 +40,21 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Boolean(getToken());
+    }
+    return false;
+  });
 
   useEffect(() => {
     let cancelled = false;
-    const restore = getToken()
-      ? apiFetch<User>("/api/auth/me")
-      : Promise.resolve(null);
-    restore
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    apiFetch<User>("/api/auth/me")
       .then((me) => {
         if (!cancelled) setUser(me);
       })

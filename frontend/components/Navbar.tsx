@@ -108,20 +108,20 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               <Link
                 href="/login"
                 className="rounded-full px-3 py-1.5 font-medium text-sand-700 transition-colors hover:bg-sand-100"
               >
-                Sign in
+                Log in
               </Link>
               <Link
                 href="/register"
                 className="rounded-full bg-sand-900 px-4 py-1.5 font-medium text-sand-50 transition-colors hover:bg-clay-700"
               >
-                Join
+                Register
               </Link>
-            </>
+            </div>
           )}
         </div>
       </nav>
