@@ -110,6 +110,7 @@ CREATE TABLE rooms (
 CREATE TABLE bookings (
     id              BIGSERIAL PRIMARY KEY,
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    hotel_id        BIGINT NOT NULL REFERENCES hotels(id) ON DELETE RESTRICT,
     check_in        DATE NOT NULL,
     check_out       DATE NOT NULL,
     guest_count     SMALLINT NOT NULL,
@@ -120,7 +121,10 @@ CREATE TABLE bookings (
     CONSTRAINT ck_bookings_guest_count_pos
         CHECK (guest_count > 0),
     CONSTRAINT ck_bookings_status
-        CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed'))
+        CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
+    -- Target for booking_rooms' composite FK (id alone is already unique)
+    CONSTRAINT uq_bookings_id_hotel
+        UNIQUE (id, hotel_id)
 );
 
 -- =============================================================================
@@ -129,6 +133,7 @@ CREATE TABLE bookings (
 CREATE TABLE booking_rooms (
     id              BIGSERIAL PRIMARY KEY,
     booking_id      BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    hotel_id        BIGINT NOT NULL,
     room_type_id    BIGINT NOT NULL REFERENCES room_types(id) ON DELETE RESTRICT,
     room_id         BIGINT NULL REFERENCES rooms(id) ON DELETE SET NULL,
     nightly_rate    NUMERIC(12, 2) NOT NULL,
@@ -137,6 +142,15 @@ CREATE TABLE booking_rooms (
     CONSTRAINT fk_booking_rooms_room_type_match
         FOREIGN KEY (room_id, room_type_id)
         REFERENCES rooms(id, room_type_id) ON DELETE RESTRICT,
+    -- hotel_id is redundant with room_type_id, but these two keys pin it to
+    -- both the booking's hotel and the room type's hotel, so one booking can
+    -- never hold rooms in two hotels.
+    CONSTRAINT fk_booking_rooms_booking_hotel
+        FOREIGN KEY (booking_id, hotel_id)
+        REFERENCES bookings(id, hotel_id) ON DELETE CASCADE,
+    CONSTRAINT fk_booking_rooms_room_type_hotel
+        FOREIGN KEY (room_type_id, hotel_id)
+        REFERENCES room_types(id, hotel_id) ON DELETE RESTRICT,
     CONSTRAINT ck_booking_rooms_nightly_rate_nonneg
         CHECK (nightly_rate >= 0),
     CONSTRAINT ck_booking_rooms_guest_count_pos

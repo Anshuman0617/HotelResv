@@ -19,6 +19,10 @@ CREATE INDEX IF NOT EXISTS idx_rooms_hotel_type_status
 CREATE INDEX IF NOT EXISTS idx_bookings_user_checkin
     ON bookings(user_id, check_in);
 
+-- 4b. Hotel-scoped booking reports (manager dashboard, revenue, history)
+CREATE INDEX IF NOT EXISTS idx_bookings_hotel_checkin
+    ON bookings(hotel_id, check_in);
+
 -- 5. Booking room line lookup by parent booking
 CREATE INDEX IF NOT EXISTS idx_booking_rooms_booking_id
     ON booking_rooms(booking_id);
