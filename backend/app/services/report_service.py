@@ -221,3 +221,44 @@ ROOM_BOOKINGS_SQL = text(
 
 async def room_bookings(db: AsyncSession, room_id: int, today: date) -> list[dict[str, Any]]:
     return await _rows(db, ROOM_BOOKINGS_SQL, room_id=room_id, today=today)
+
+
+# One row per room of the hotel. A room is occupied when a pending or confirmed
+# booking covers tonight (check_in <= today < check_out); those are the same
+# bookings that block the room in the availability search. The LATERAL joins
+# find the current stay and the next arrival using idx_booking_rooms_room_id.
+ROOM_OCCUPANCY_SQL = text(
+    """
+    SELECT r.id AS room_id,
+           cur.booking_id IS NOT NULL AS occupied,
+           cur.check_out AS occupied_until,
+           nxt.check_in AS next_check_in
+    FROM rooms r
+    LEFT JOIN LATERAL (
+        SELECT b.id AS booking_id, b.check_out
+        FROM booking_rooms br
+        JOIN bookings b ON b.id = br.booking_id
+        WHERE br.room_id = r.id
+          AND b.status IN ('pending', 'confirmed')
+          AND b.check_in <= :today AND b.check_out > :today
+        ORDER BY b.check_out DESC
+        LIMIT 1
+    ) cur ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT b.check_in
+        FROM booking_rooms br
+        JOIN bookings b ON b.id = br.booking_id
+        WHERE br.room_id = r.id
+          AND b.status IN ('pending', 'confirmed')
+          AND b.check_in > :today
+        ORDER BY b.check_in
+        LIMIT 1
+    ) nxt ON TRUE
+    WHERE r.hotel_id = :hotel_id
+    ORDER BY r.id
+    """
+)
+
+
+async def room_occupancy(db: AsyncSession, hotel_id: int, today: date) -> list[dict[str, Any]]:
+    return await _rows(db, ROOM_OCCUPANCY_SQL, hotel_id=hotel_id, today=today)
