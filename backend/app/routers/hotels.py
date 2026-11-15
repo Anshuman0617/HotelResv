@@ -8,6 +8,7 @@ from app.dependencies.auth import get_current_user
 from app.dependencies.authorization import require_hotel_role
 from app.models.user import User
 from app.schemas.hotel import HotelCreate, HotelResponse, HotelSummary, HotelUpdate
+from app.schemas.member import MemberCreate, MemberResponse, MemberRoleUpdate
 from app.schemas.room import (
     AvailableRoomType,
     RoomCreate,
@@ -17,7 +18,7 @@ from app.schemas.room import (
     RoomTypeResponse,
     RoomTypeUpdate,
 )
-from app.services import hotel_service, room_service
+from app.services import hotel_service, member_service, room_service
 
 router = APIRouter(prefix="/api/hotels", tags=["Hotels & Inventory"])
 
@@ -268,6 +269,67 @@ async def update_room_status(
     room = await room_service.update_room_status(db, hotel_id, room_id, request.status)
     data = RoomResponse.model_validate(room).model_dump(mode="json")
     return api_response(data, "Room status updated successfully")
+
+
+# -----------------------------------------------------------------------------
+# 4. Hotel Team (hotel_members)
+# -----------------------------------------------------------------------------
+
+
+def member_json(member: dict) -> dict[str, Any]:
+    return MemberResponse.model_validate(member).model_dump(mode="json")
+
+
+@router.get("/{hotel_id}/members", response_model=dict[str, Any])
+async def list_hotel_members(
+    hotel_id: int,
+    db: AsyncSession = Depends(get_db),
+    _membership=Depends(require_hotel_role(["owner", "manager", "staff"])),
+):
+    """Everyone with access to the hotel and their role (any member may view)."""
+    members = await member_service.list_members(db, hotel_id)
+    return api_response([member_json(m) for m in members], "Hotel members retrieved")
+
+
+@router.post(
+    "/{hotel_id}/members",
+    status_code=status.HTTP_201_CREATED,
+    response_model=dict[str, Any],
+)
+async def add_hotel_member(
+    hotel_id: int,
+    request: MemberCreate,
+    db: AsyncSession = Depends(get_db),
+    _membership=Depends(require_hotel_role(["owner"])),
+):
+    """Grant an existing account the manager or staff role (owner only)."""
+    member = await member_service.add_member(db, hotel_id, request)
+    return api_response(member_json(member), "Member added")
+
+
+@router.patch("/{hotel_id}/members/{user_id}", response_model=dict[str, Any])
+async def change_hotel_member_role(
+    hotel_id: int,
+    user_id: int,
+    request: MemberRoleUpdate,
+    db: AsyncSession = Depends(get_db),
+    _membership=Depends(require_hotel_role(["owner"])),
+):
+    """Switch a member between manager and staff (owner only)."""
+    member = await member_service.update_member_role(db, hotel_id, user_id, request.role)
+    return api_response(member_json(member), "Member role updated")
+
+
+@router.delete("/{hotel_id}/members/{user_id}", response_model=dict[str, Any])
+async def remove_hotel_member(
+    hotel_id: int,
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _membership=Depends(require_hotel_role(["owner"])),
+):
+    """Remove a manager or staff member from the hotel (owner only)."""
+    await member_service.remove_member(db, hotel_id, user_id)
+    return api_response({}, "Member removed")
 
 
 @router.get("/{hotel_id}/reviews", response_model=dict[str, Any])
