@@ -23,6 +23,15 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // Same rules as RegisterRequest in backend/app/schemas/auth.py.
+    if (fullName.trim().length < 2) {
+      setError("Full name must be at least 2 characters.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     setSubmitting(true);
     try {
       await register({
@@ -66,6 +75,8 @@ export default function RegisterPage() {
               type="text"
               autoComplete="name"
               required
+              minLength={2}
+              maxLength={120}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className={inputClass}
@@ -96,10 +107,15 @@ export default function RegisterPage() {
               type="password"
               autoComplete="new-password"
               required
+              minLength={8}
+              aria-describedby="password-hint"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+            <p id="password-hint" className="mt-1 text-xs text-slate-500">
+              At least 8 characters.
+            </p>
           </div>
 
           <div>
@@ -111,6 +127,7 @@ export default function RegisterPage() {
               id="phone"
               type="tel"
               autoComplete="tel"
+              maxLength={25}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className={inputClass}
