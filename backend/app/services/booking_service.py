@@ -43,6 +43,27 @@ def create_booking(db: Session, user_id: int, request: BookingRequest) -> dict:
         hotel = db.get(Hotel, request.hotel_id)
         if hotel is None or hotel.status != "active":
             raise HTTPException(status_code=404, detail="Active hotel not found")
+
+        # Disallow double-booking: check for overlapping active bookings by the same user at this hotel
+        overlapping = db.scalar(
+            select(Booking.id)
+            .join(BookingRoom, BookingRoom.booking_id == Booking.id)
+            .join(RoomType, RoomType.id == BookingRoom.room_type_id)
+            .where(
+                Booking.user_id == user_id,
+                RoomType.hotel_id == request.hotel_id,
+                Booking.status.in_(["pending", "confirmed"]),
+                Booking.check_in < request.check_out,
+                Booking.check_out > request.check_in,
+            )
+            .limit(1)
+        )
+        if overlapping is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="You already have an active reservation at this hotel for overlapping dates",
+            )
+
         requested = sorted(request.rooms, key=lambda item: item.room_type_id)
         room_types = {item.id: item for item in db.scalars(select(RoomType).where(RoomType.id.in_([r.room_type_id for r in requested]), RoomType.hotel_id == request.hotel_id)).all()}
         for item in requested:
