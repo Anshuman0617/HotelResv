@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -7,7 +8,8 @@ from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.dependencies.authorization import require_hotel_role
 from app.models.user import User
-from app.services import report_service
+from app.schemas.room import RoomResponse
+from app.services import report_service, room_service
 
 router = APIRouter(prefix="/api/manager", tags=["Reports"])
 
@@ -56,6 +58,19 @@ def hotel_repeat_customers(hotel_id: int, db: Session = Depends(get_db)):
 def hotel_payments(hotel_id: int, db: Session = Depends(get_db)):
     return response(report_service.hotel_payments(db, hotel_id), "Hotel payments retrieved")
 
+
+
+@router.get("/hotels/{hotel_id}/rooms/{room_id}/bookings", dependencies=[Depends(report_access)])
+def room_history(hotel_id: int, room_id: int, db: Session = Depends(get_db)):
+    """Past, current and upcoming bookings assigned to one physical room."""
+    # get_room 404s unless the room belongs to this hotel, so a manager can't
+    # read another hotel's room by guessing its id.
+    room = room_service.get_room(db, hotel_id, room_id)
+    data = {
+        "room": RoomResponse.model_validate(room).model_dump(mode="json"),
+        "bookings": report_service.room_bookings(db, room.id, date.today()),
+    }
+    return response(data, "Room history retrieved")
 
 
 @router.get("/reports/top-rated-hotels")

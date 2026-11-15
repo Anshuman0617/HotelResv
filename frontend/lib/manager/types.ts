@@ -131,3 +131,25 @@ export type HotelRatingResult = {
   min_rating: number;
   max_rating: number;
 };
+
+export type RoomBookingPeriod = "past" | "current" | "upcoming" | "cancelled";
+
+/** One booking in GET /api/manager/hotels/{id}/rooms/{room_id}/bookings */
+export type RoomBookingRow = {
+  booking_id: number;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string | null;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  guest_count: number;
+  nightly_rate: number;
+  booking_status: ReservationStatus;
+  period: RoomBookingPeriod;
+};
+
+export type RoomHistory = {
+  room: PhysicalRoom;
+  bookings: RoomBookingRow[];
+};

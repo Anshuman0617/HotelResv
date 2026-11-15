@@ -88,6 +88,7 @@ class BookingRoom(Base):
         CheckConstraint("nightly_rate >= 0", name="ck_booking_rooms_nightly_rate_nonneg"),
         CheckConstraint("guest_count > 0", name="ck_booking_rooms_guest_count_pos"),
         Index("idx_booking_rooms_booking_id", "booking_id"),
+        Index("idx_booking_rooms_room_id", "room_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

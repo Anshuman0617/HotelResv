@@ -122,7 +122,7 @@ def context():
             booking = add_booking(db, users["cust3"], [(r5, 80)], start, 1, "completed")
             db.add(Review(booking_id=booking.id, user_id=users["cust3"].id, hotel_id=c.id, rating=rating))
 
-        ids = {"a": a.id, "b": b.id, "c": c.id, "b1": b1.id, "b2": b2.id, "b3": b3.id, **{n: u.id for n, u in users.items()}}
+        ids = {"a": a.id, "b": b.id, "c": c.id, "b1": b1.id, "b2": b2.id, "b3": b3.id, "r1": r1.id, "r2": r2.id, "r4": r4.id, **{n: u.id for n, u in users.items()}}
 
     def database():
         with sessions() as db:
@@ -235,3 +235,45 @@ def test_member_hotels_lists_only_own_memberships(context):
     assert hotels("outsider") == [(ids["b"], "owner")]  # registered C but is not a member
     assert hotels("cust1") == []
     assert get("/api/manager/hotels", as_user=None).status_code == 401
+
+
+def test_room_history_groups_bookings_by_period(context):
+    get, ids = context
+    today = date.today()
+    # Add bookings around today for room 101; the fixture's 2026 dates are all past.
+    session = app.dependency_overrides[get_db]()
+    db = next(session)
+    room = db.get(Room, ids["r1"])
+    cust = {n: db.get(User, ids[n]) for n in ("cust2", "cust3")}
+    current = add_booking(db, cust["cust2"], [(room, 100)], (today - timedelta(days=1)).isoformat(), 3, "confirmed")
+    upcoming = add_booking(db, cust["cust3"], [(room, 120)], (today + timedelta(days=5)).isoformat(), 2, "pending")
+    current_id, upcoming_id = current.id, upcoming.id
+    db.commit()
+    session.close()
+
+    response = get(f"/api/manager/hotels/{ids['a']}/rooms/{ids['r1']}/bookings")
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["room"]["room_number"] == "101"
+    assert [(r["booking_id"], r["period"]) for r in data["bookings"]] == [
+        (upcoming_id, "upcoming"),
+        (current_id, "current"),
+        (ids["b3"], "cancelled"),
+        (ids["b1"], "past"),
+    ]
+    now = data["bookings"][1]
+    assert (now["customer_name"], now["customer_email"], now["nights"]) == ("Cust2", "cust2@example.com", 3)
+    # Room 102 only has its own booking.
+    other = get(f"/api/manager/hotels/{ids['a']}/rooms/{ids['r2']}/bookings").json()["data"]["bookings"]
+    assert [r["booking_id"] for r in other] == [ids["b2"]]
+
+
+def test_room_history_access(context):
+    get, ids = context
+    path = f"/api/manager/hotels/{ids['a']}/rooms/{ids['r1']}/bookings"
+    assert get(path, as_user="owner").status_code == 200
+    assert get(path, as_user="staff").status_code == 403
+    assert get(path, as_user="outsider").status_code == 403
+    assert get(path, as_user=None).status_code == 401
+    # Hotel B's room can't be read through hotel A.
+    assert get(f"/api/manager/hotels/{ids['a']}/rooms/{ids['r4']}/bookings").status_code == 404

@@ -23,11 +23,15 @@ CREATE INDEX IF NOT EXISTS idx_bookings_user_checkin
 CREATE INDEX IF NOT EXISTS idx_booking_rooms_booking_id
     ON booking_rooms(booking_id);
 
--- 6. Payment transaction lookup by booking
+-- 6. Booking history for one physical room (manager room history)
+CREATE INDEX IF NOT EXISTS idx_booking_rooms_room_id
+    ON booking_rooms(room_id);
+
+-- 7. Payment transaction lookup by booking
 CREATE INDEX IF NOT EXISTS idx_payments_booking_id
     ON payments(booking_id);
 
--- 7. Hotel review lookup and rating aggregation
+-- 8. Hotel review lookup and rating aggregation
 CREATE INDEX IF NOT EXISTS idx_reviews_hotel_id
     ON reviews(hotel_id);
 
@@ -37,4 +41,5 @@ CREATE INDEX IF NOT EXISTS idx_reviews_hotel_id
 -- EXPLAIN ANALYZE SELECT * FROM hotels WHERE city = 'Mumbai' AND status = 'active';
 -- EXPLAIN ANALYZE SELECT * FROM rooms WHERE hotel_id = 1 AND room_type_id = 1 AND status = 'active';
 -- EXPLAIN ANALYZE SELECT * FROM bookings WHERE user_id = 10 ORDER BY check_in DESC;
+-- EXPLAIN ANALYZE SELECT * FROM booking_rooms WHERE room_id = 1;
 -- EXPLAIN ANALYZE SELECT AVG(rating), COUNT(*) FROM reviews WHERE hotel_id = 1;

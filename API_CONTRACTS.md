@@ -84,6 +84,7 @@ gets 401.
 | `GET /api/manager/hotels/{hotel_id}/reports/popular-room-types` | Query 4 | up to 15 room types by times booked |
 | `GET /api/manager/hotels/{hotel_id}/reports/repeat-customers` | Query 6 | customers with more than one booking at this hotel |
 | `GET /api/manager/hotels/{hotel_id}/reports/payments` | `payments` table | payments for this hotel's bookings with customer name, newest first |
+| `GET /api/manager/hotels/{hotel_id}/rooms/{room_id}/bookings` | `booking_rooms` by `room_id` | `{room, bookings}`: every booking assigned to that room with guest name, email, phone, dates and `period` (`past`, `current`, `upcoming` or `cancelled`), newest check-in first; 404 if the room isn't in this hotel |
 | `GET /api/manager/reports/top-rated-hotels` | Query 5 | hotels with at least 3 reviews and an average of 3.5 or more; any signed-in user |
 
 Field names match the frontend types in `frontend/lib/manager/types.ts`
