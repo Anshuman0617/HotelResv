@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
-import {
-  query3MockPreview,
-  query4MockPreview,
-  query5MockPreview,
-} from "@/lib/manager/mock";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError, useApiData } from "@/lib/manager/useApiData";
+import type {
+  HotelRatingResult,
+  MonthlyRevenueResult,
+  PopularRoomTypeResult,
+} from "@/lib/manager/types";
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -22,18 +24,28 @@ const ratingFormat = new Intl.NumberFormat("en-IN", {
 const allMonths = "all";
 
 export default function ManagerReportsPage() {
-  const { hotels, selectedHotel } = useManagerHotel();
-  const [selectedMonth, setSelectedMonth] = useState(allMonths);
-
-  const hotelRevenueRows = useMemo(
-    () =>
-      query3MockPreview.rows
-        .filter((row) => row.hotel_id === selectedHotel.id)
-        .sort((left, right) =>
-          right.revenue_month.localeCompare(left.revenue_month),
-        ),
-    [selectedHotel.id],
+  const { selectedHotel } = useManagerHotel();
+  const reportsAllowed = selectedHotel.role !== "staff";
+  const base = `/api/manager/hotels/${selectedHotel.id}/reports`;
+  const revenue = useApiData<MonthlyRevenueResult[]>(
+    reportsAllowed ? `${base}/revenue` : null,
   );
+  const popular = useApiData<PopularRoomTypeResult[]>(
+    reportsAllowed ? `${base}/popular-room-types` : null,
+  );
+  const ratings = useApiData<HotelRatingResult[]>(
+    "/api/manager/reports/top-rated-hotels",
+  );
+  const [monthChoice, setSelectedMonth] = useState<{
+    hotelId: number;
+    month: string;
+  } | null>(null);
+  // A month picked for one hotel does not carry over to another.
+  const selectedMonth =
+    monthChoice?.hotelId === selectedHotel.id ? monthChoice.month : allMonths;
+
+  // Query 3 already returns newest month first.
+  const hotelRevenueRows = useMemo(() => revenue.data ?? [], [revenue.data]);
   const months = useMemo(
     () => [...new Set(hotelRevenueRows.map((row) => row.revenue_month))],
     [hotelRevenueRows],
@@ -43,48 +55,23 @@ export default function ManagerReportsPage() {
       ? hotelRevenueRows
       : hotelRevenueRows.filter((row) => row.revenue_month === selectedMonth);
   const reportingPeriodRevenue = revenueRows.reduce(
-    (total, row) => total + row.monthly_revenue,
+    (total, row) => total + Number(row.monthly_revenue),
     0,
   );
   const maxMonthlyRevenue = Math.max(
-    ...hotelRevenueRows.map((row) => row.monthly_revenue),
+    ...hotelRevenueRows.map((row) => Number(row.monthly_revenue)),
     0,
   );
 
-  const popularRoomRows = query4MockPreview.rows
-    .filter((row) => row.hotel_id === selectedHotel.id)
-    .sort(
-      (left, right) =>
-        right.times_booked - left.times_booked ||
-        right.total_room_revenue - left.total_room_revenue,
-    );
+  // Query 4 is ordered by times booked, then revenue.
+  const popularRoomRows = popular.data ?? [];
 
-  const ratingByHotelId = new Map(
-    query5MockPreview.rows.map((row) => [row.hotel_id, row]),
+  // Query 5 is ordered by average rating, then review count.
+  const rankedHotels = ratings.data ?? [];
+  const selectedIsRanked = rankedHotels.some(
+    (row) => row.hotel_id === selectedHotel.id,
   );
-  const rankedHotels = [
-    ...query5MockPreview.rows.map((row) => ({
-      hotel: hotels.find((hotel) => hotel.id === row.hotel_id),
-      rating: row,
-      withoutReviews: false,
-    })),
-    ...query5MockPreview.hotelsWithoutReviews
-      .map((hotelId) => ({
-        hotel: hotels.find((item) => item.id === hotelId),
-        rating: undefined,
-        withoutReviews: true,
-      }))
-      .filter((item) => item.hotel),
-  ]
-    .filter((item) => item.hotel)
-    .sort((left, right) => {
-      if (!left.rating) return 1;
-      if (!right.rating) return -1;
-      return (
-        right.rating.average_rating - left.rating.average_rating ||
-        right.rating.total_reviews - left.rating.total_reviews
-      );
-    });
+  const loadError = revenue.error ?? popular.error ?? ratings.error;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -97,14 +84,27 @@ export default function ManagerReportsPage() {
             Reports
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Performance previews for {selectedHotel.name} and your hotel
-            portfolio.
+            Live results of the reporting SQL queries for{" "}
+            {selectedHotel.name}.
           </p>
         </div>
-        <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
-          Mock preview · Database not connected
-        </span>
       </header>
+
+      {!reportsAllowed ? (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Revenue and room-type reports are visible to owners and managers.
+        </p>
+      ) : null}
+      {loadError ? (
+        <ErrorNotice
+          message={describeApiError(loadError)}
+          onRetry={() => {
+            revenue.reload();
+            popular.reload();
+            ratings.reload();
+          }}
+        />
+      ) : null}
 
       <section
         aria-labelledby="revenue-title"
@@ -129,7 +129,12 @@ export default function ManagerReportsPage() {
             Reporting period
             <select
               value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
+              onChange={(event) =>
+                setSelectedMonth({
+                  hotelId: selectedHotel.id,
+                  month: event.target.value,
+                })
+              }
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
             >
               <option value={allMonths}>All available months</option>
@@ -160,23 +165,29 @@ export default function ManagerReportsPage() {
                     <div
                       className="h-3 overflow-hidden rounded-full bg-slate-100"
                       role="img"
-                      aria-label={`${currency.format(row.monthly_revenue)} revenue`}
+                      aria-label={`${currency.format(Number(row.monthly_revenue))} revenue`}
                     >
                       <div
                         className="h-full rounded-full bg-indigo-600"
                         style={{
-                          width: `${(row.monthly_revenue / maxMonthlyRevenue) * 100}%`,
+                          width: `${(Number(row.monthly_revenue) / maxMonthlyRevenue) * 100}%`,
                         }}
                       />
                     </div>
                     <span className="text-right font-medium text-slate-900">
-                      {currency.format(row.monthly_revenue)}
+                      {currency.format(Number(row.monthly_revenue))}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <EmptyState message="No revenue preview is available for this hotel and period." />
+              <EmptyState
+                message={
+                  revenue.loading && !revenue.data
+                    ? "Loading revenue…"
+                    : "No successful payments for this hotel and period."
+                }
+              />
             )}
           </div>
 
@@ -223,7 +234,7 @@ export default function ManagerReportsPage() {
                     {row.paid_bookings_count}
                   </td>
                   <td className="px-5 py-3 text-right font-medium text-slate-900">
-                    {currency.format(row.monthly_revenue)}
+                    {currency.format(Number(row.monthly_revenue))}
                   </td>
                 </tr>
               ))}
@@ -288,10 +299,10 @@ export default function ManagerReportsPage() {
                     {row.times_booked}
                   </td>
                   <td className="px-5 py-3 text-right text-slate-700">
-                    {currency.format(row.avg_booked_nightly_rate)}
+                    {currency.format(Number(row.avg_booked_nightly_rate))}
                   </td>
                   <td className="px-5 py-3 text-right font-medium text-slate-900">
-                    {currency.format(row.total_room_revenue)}
+                    {currency.format(Number(row.total_room_revenue))}
                   </td>
                 </tr>
               ))}
@@ -301,7 +312,9 @@ export default function ManagerReportsPage() {
                     colSpan={5}
                     className="px-5 py-6 text-center text-slate-500"
                   >
-                    No room-type booking preview is available for this hotel.
+                    {popular.loading && !popular.data
+                      ? "Loading room types…"
+                      : "No confirmed or completed bookings for this hotel yet."}
                   </td>
                 </tr>
               ) : null}
@@ -325,8 +338,8 @@ export default function ManagerReportsPage() {
             Hotel ratings
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Portfolio-wide ranking by average rating; {selectedHotel.name} is
-            highlighted.
+            Every hotel that meets the threshold, ranked by average rating;{" "}
+            {selectedHotel.name} is highlighted.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -342,26 +355,19 @@ export default function ManagerReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rankedHotels.map((item, index) => {
-                if (!item.hotel) return null;
-                const rating = ratingByHotelId.get(item.hotel.id);
-                const isSelected = item.hotel.id === selectedHotel.id;
-
+              {rankedHotels.map((row, index) => {
+                const isSelected = row.hotel_id === selectedHotel.id;
                 return (
                   <tr
-                    key={item.hotel.id}
+                    key={row.hotel_id}
                     className={isSelected ? "bg-indigo-50/70" : undefined}
                   >
-                    <td className="px-5 py-3 text-slate-500">
-                      {rating ? index + 1 : "—"}
-                    </td>
+                    <td className="px-5 py-3 text-slate-500">{index + 1}</td>
                     <td className="px-5 py-3">
                       <span className="font-medium text-slate-900">
-                        {item.hotel.name}
+                        {row.hotel_name}
                       </span>
-                      <span className="ml-2 text-slate-500">
-                        {item.hotel.city}
-                      </span>
+                      <span className="ml-2 text-slate-500">{row.city}</span>
                       {isSelected ? (
                         <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
                           Selected
@@ -369,37 +375,44 @@ export default function ManagerReportsPage() {
                       ) : null}
                     </td>
                     <td className="px-5 py-3 text-right font-medium text-slate-900">
-                      {rating
-                        ? `${ratingFormat.format(rating.average_rating)} / 5`
-                        : item.withoutReviews
-                          ? "No reviews"
-                          : "Not ranked"}
+                      {ratingFormat.format(Number(row.average_rating))} / 5
                     </td>
                     <td className="px-5 py-3 text-right text-slate-700">
-                      {rating
-                        ? rating.total_reviews
-                        : item.withoutReviews
-                          ? 0
-                          : "—"}
+                      {row.total_reviews}
                     </td>
                   </tr>
                 );
               })}
+              {ratings.data && !selectedIsRanked ? (
+                <tr className="bg-indigo-50/70">
+                  <td className="px-5 py-3 text-slate-500">—</td>
+                  <td className="px-5 py-3">
+                    <span className="font-medium text-slate-900">
+                      {selectedHotel.name}
+                    </span>
+                    <span className="ml-2 text-slate-500">{selectedHotel.city}</span>
+                  </td>
+                  <td colSpan={2} className="px-5 py-3 text-right text-slate-500">
+                    Not ranked (needs at least 3 reviews averaging 3.5+)
+                  </td>
+                </tr>
+              ) : null}
+              {ratings.loading && !ratings.data ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-6 text-center text-slate-500">
+                    Loading ratings…
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
         <p className="border-t border-slate-100 px-5 py-3 text-xs leading-5 text-slate-500">
-          Query 5 requires at least 3 reviews and a 3.5 average rating. Hotels
-          without reviews are shown as unranked, not as zero-star ratings, and
-          are excluded from the SQL ranking.
+          Query 5 requires at least 3 reviews and a 3.5 average rating
+          (HAVING clause), so hotels below the threshold are not ranked.
         </p>
       </section>
 
-      <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-        All figures on this page are mock previews based on the manager sample
-        fixtures. No database queries have been executed; live figures require
-        PostgreSQL query and backend/API integration.
-      </p>
     </div>
   );
 }
