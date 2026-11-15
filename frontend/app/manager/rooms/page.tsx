@@ -5,10 +5,12 @@ import ManagerModal from "@/components/manager/ManagerModal";
 import RoomHistory from "@/components/manager/RoomHistory";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
 import { ErrorNotice } from "@/components/manager/LoadState";
-import { describeApiError } from "@/lib/manager/useApiData";
+import { describeApiError, useApiData } from "@/lib/manager/useApiData";
 import {
   roomStatuses,
+  type PhysicalRoom,
   type PhysicalRoomInput,
+  type RoomOccupancy,
   type RoomStatus,
 } from "@/lib/manager/types";
 
@@ -17,6 +19,50 @@ const statusStyles: Record<RoomStatus, string> = {
   maintenance: "bg-amber-50 text-amber-700",
   inactive: "bg-sand-100 text-sand-700",
 };
+
+type Occupancy = "occupied" | "vacant" | "out_of_service";
+const occupancyFilters = ["occupied", "vacant", "out_of_service"] as const;
+
+const occupancyStyles: Record<
+  Occupancy,
+  { label: string; badge: string; dot: string; row: string }
+> = {
+  occupied: {
+    label: "Occupied",
+    badge: "bg-rose-50 text-rose-700 ring-rose-200",
+    dot: "bg-rose-500",
+    row: "bg-rose-50/40 shadow-[inset_4px_0_0] shadow-rose-400",
+  },
+  vacant: {
+    label: "Vacant",
+    badge: "bg-lagoon-50 text-lagoon-700 ring-lagoon-200",
+    dot: "bg-lagoon-500",
+    row: "shadow-[inset_4px_0_0] shadow-lagoon-400",
+  },
+  out_of_service: {
+    label: "Out of service",
+    badge: "bg-sand-100 text-sand-600 ring-sand-200",
+    dot: "bg-sand-400",
+    row: "shadow-[inset_4px_0_0] shadow-sand-300",
+  },
+};
+
+/**
+ * A guest in the room wins over the room's status: a room put into
+ * maintenance mid-stay is still occupied until the guest leaves.
+ */
+function occupancyOf(room: PhysicalRoom, info: RoomOccupancy | undefined): Occupancy {
+  if (info?.occupied) return "occupied";
+  return room.status === "active" ? "vacant" : "out_of_service";
+}
+
+const shortDate = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" });
+
+/** "18 Nov" for an ISO date, read as a calendar date so time zones can't shift it. */
+function formatDay(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return shortDate.format(new Date(year, month - 1, day));
+}
 
 const inputClass =
   "mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100";
@@ -31,6 +77,7 @@ export default function ManagerRoomsPage() {
     inventoryError,
   } = useManagerHotel();
   const [statusFilter, setStatusFilter] = useState<"all" | RoomStatus>("all");
+  const [occupancyFilter, setOccupancyFilter] = useState<"all" | Occupancy>("all");
   const [roomSearch, setRoomSearch] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [formHotelId, setFormHotelId] = useState<number | null>(null);
@@ -41,6 +88,16 @@ export default function ManagerRoomsPage() {
   // Room history shows guest contact details, which staff can't see.
   const canViewHistory = selectedHotel.role !== "staff";
   const historyRoom = rooms.find((room) => room.id === historyRoomId) ?? null;
+
+  // Rooms added after this loads aren't in it yet; they count as vacant, which
+  // is right because a new room has no bookings.
+  const occupancyRequest = useApiData<RoomOccupancy[]>(
+    `/api/manager/hotels/${selectedHotel.id}/rooms/occupancy`,
+  );
+  const occupancyById = useMemo(
+    () => new Map((occupancyRequest.data ?? []).map((row) => [row.room_id, row])),
+    [occupancyRequest.data],
+  );
 
   const hotelRooms = useMemo(
     () => rooms.filter((room) => room.hotel_id === selectedHotel.id),
@@ -55,9 +112,17 @@ export default function ManagerRoomsPage() {
     return hotelRooms.filter((room) => {
       const matchesStatus = statusFilter === "all" || room.status === statusFilter;
       const matchesSearch = room.room_number.toLocaleLowerCase().includes(query);
-      return matchesStatus && matchesSearch;
+      const matchesOccupancy =
+        occupancyFilter === "all" ||
+        occupancyOf(room, occupancyById.get(room.id)) === occupancyFilter;
+      return matchesStatus && matchesSearch && matchesOccupancy;
     });
-  }, [hotelRooms, roomSearch, statusFilter]);
+  }, [hotelRooms, roomSearch, statusFilter, occupancyFilter, occupancyById]);
+  const occupancyCounts = useMemo(() => {
+    const counts: Record<Occupancy, number> = { occupied: 0, vacant: 0, out_of_service: 0 };
+    for (const room of hotelRooms) counts[occupancyOf(room, occupancyById.get(room.id))] += 1;
+    return counts;
+  }, [hotelRooms, occupancyById]);
   const typeNames = useMemo(
     () => new Map(roomTypes.map((roomType) => [roomType.id, roomType.name])),
     [roomTypes],
@@ -171,9 +236,15 @@ export default function ManagerRoomsPage() {
 
       {inventoryError ? <ErrorNotice message={inventoryError} /> : null}
       {statusError ? <ErrorNotice message={statusError} /> : null}
+      {occupancyRequest.error ? (
+        <ErrorNotice
+          message={`Couldn't load who is in each room. ${describeApiError(occupancyRequest.error)}`}
+          onRetry={occupancyRequest.reload}
+        />
+      ) : null}
 
       <section className="rounded-xl border border-sand-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_200px]">
           <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Search room number
             <input
@@ -208,15 +279,43 @@ export default function ManagerRoomsPage() {
               ))}
             </select>
           </label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
+            Filter by occupancy
+            <select
+              value={occupancyFilter}
+              onChange={(event) => {
+                const value = occupancyFilters.find((o) => o === event.target.value);
+                setOccupancyFilter(value ?? "all");
+              }}
+              className={inputClass}
+            >
+              <option value="all">All rooms</option>
+              {occupancyFilters.map((value) => (
+                <option key={value} value={value}>
+                  {occupancyStyles[value].label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
       <section className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
         <div className="border-b border-sand-200 px-5 py-4">
           <h2 className="font-semibold text-sand-900">Room inventory</h2>
-          <p className="mt-1 text-sm text-sand-500">
-            Showing {visibleRooms.length} of {hotelRooms.length} rooms
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-sand-500">
+            <span>
+              Showing {visibleRooms.length} of {hotelRooms.length} rooms
+            </span>
+            {occupancyRequest.data
+              ? occupancyFilters.map((value) => (
+                  <span key={value} className="inline-flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${occupancyStyles[value].dot}`} />
+                    {occupancyCounts[value]} {occupancyStyles[value].label.toLowerCase()}
+                  </span>
+                ))
+              : null}
+          </div>
         </div>
         {visibleRooms.length ? (
           <div className="overflow-x-auto">
@@ -226,6 +325,7 @@ export default function ManagerRoomsPage() {
                   <th className="px-5 py-3 font-medium">Room number</th>
                   <th className="px-5 py-3 font-medium">Room type</th>
                   <th className="px-5 py-3 font-medium">Floor</th>
+                  <th className="px-5 py-3 font-medium">Tonight</th>
                   <th className="px-5 py-3 font-medium">Status</th>
                   {canViewHistory ? (
                     <th className="px-5 py-3 font-medium">
@@ -235,52 +335,82 @@ export default function ManagerRoomsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-sand-100">
-                {visibleRooms.map((room) => (
-                  <tr key={room.id}>
-                    <td className="px-5 py-4 font-medium text-sand-900">
-                      {room.room_number}
-                    </td>
-                    <td className="px-5 py-4 text-sand-700">
-                      {typeNames.get(room.room_type_id) ?? "Unknown room type"}
-                    </td>
-                    <td className="px-5 py-4 text-sand-700">
-                      {room.floor ?? "—"}
-                    </td>
-                    <td className="px-5 py-4">
-                      <label className="sr-only" htmlFor={`room-status-${room.id}`}>
-                        Status for room {room.room_number}
-                      </label>
-                      <select
-                        id={`room-status-${room.id}`}
-                        value={room.status}
-                        onChange={(event) => {
-                          const status = roomStatuses.find(
-                            (value) => value === event.target.value,
-                          );
-                          if (status) void changeStatus(room.id, status);
-                        }}
-                        className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold capitalize outline-none focus:ring-2 focus:ring-clay-300 ${statusStyles[room.status]}`}
-                      >
-                        {roomStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    {canViewHistory ? (
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setHistoryRoomId(room.id)}
-                          className="rounded-md border border-sand-300 px-3 py-1.5 text-xs font-medium text-sand-700 hover:bg-sand-50"
-                        >
-                          Guests
-                        </button>
+                {visibleRooms.map((room) => {
+                  const info = occupancyById.get(room.id);
+                  const occupancy = occupancyOf(room, info);
+                  const style = occupancyStyles[occupancy];
+                  return (
+                    <tr key={room.id} className={occupancyRequest.data ? style.row : undefined}>
+                      <td className="px-5 py-4 font-medium text-sand-900">
+                        {room.room_number}
                       </td>
-                    ) : null}
-                  </tr>
-                ))}
+                      <td className="px-5 py-4 text-sand-700">
+                        {typeNames.get(room.room_type_id) ?? "Unknown room type"}
+                      </td>
+                      <td className="px-5 py-4 text-sand-700">
+                        {room.floor ?? "—"}
+                      </td>
+                      <td className="px-5 py-4">
+                        {occupancyRequest.data ? (
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${style.badge}`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+                              {style.label}
+                            </span>
+                            {occupancy === "occupied" && info?.occupied_until ? (
+                              <span className="text-xs text-sand-500">
+                                Until {formatDay(info.occupied_until)}
+                              </span>
+                            ) : occupancy === "vacant" && info?.next_check_in ? (
+                              <span className="text-xs text-sand-500">
+                                Next arrival {formatDay(info.next_check_in)}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-sand-400">
+                            {occupancyRequest.error ? "—" : "Loading…"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <label className="sr-only" htmlFor={`room-status-${room.id}`}>
+                          Status for room {room.room_number}
+                        </label>
+                        <select
+                          id={`room-status-${room.id}`}
+                          value={room.status}
+                          onChange={(event) => {
+                            const status = roomStatuses.find(
+                              (value) => value === event.target.value,
+                            );
+                            if (status) void changeStatus(room.id, status);
+                          }}
+                          className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold capitalize outline-none focus:ring-2 focus:ring-clay-300 ${statusStyles[room.status]}`}
+                        >
+                          {roomStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      {canViewHistory ? (
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setHistoryRoomId(room.id)}
+                            className="rounded-md border border-sand-300 px-3 py-1.5 text-xs font-medium text-sand-700 hover:bg-sand-50"
+                          >
+                            Guests
+                          </button>
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -291,7 +421,7 @@ export default function ManagerRoomsPage() {
             </p>
             <p className="mt-1 text-sm text-sand-500">
               {hotelRooms.length
-                ? "Try a different room number or status."
+                ? "Try a different room number, status or occupancy."
                 : hotelRoomTypes.length
                   ? "Add a room to start tracking this hotel’s inventory."
                   : "Create a room type before adding physical rooms."}

@@ -153,3 +153,14 @@ export type RoomHistory = {
   room: PhysicalRoom;
   bookings: RoomBookingRow[];
 };
+
+/** One room in GET /api/manager/hotels/{id}/rooms/occupancy */
+export type RoomOccupancy = {
+  room_id: number;
+  /** A pending or confirmed booking covers tonight. */
+  occupied: boolean;
+  /** Check-out date of the current stay, when occupied. */
+  occupied_until: string | null;
+  /** Check-in date of the next booking after today, if any. */
+  next_check_in: string | null;
+};
