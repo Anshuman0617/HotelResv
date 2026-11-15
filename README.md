@@ -1,61 +1,75 @@
-# Hotel Booking System - DBMS Mid-Sem Project
+# Hotel Booking System (HotelResv) – DBMS Project
+
+A multi-hotel reservation and property-management system built on a PostgreSQL database, with a FastAPI backend and a Next.js frontend. CS F212 Database Systems.
 
 ## 1. Project Overview
 
-The **Hotel Booking System** is a database-driven application designed to simplify hotel discovery, room selection, booking management, and customer reviews. The system aims to support multiple independently registered hotels through a shared database while maintaining secure, hotel-specific access for owners and staff.
+Many independently registered hotels share one relational database. Each hotel's records stay isolated through hotel-level roles, while customers search across all of them, book rooms for specific dates, pay, cancel and review their stays.
 
-This project focuses on relational database design, integrity constraints, normalization, and the integration of a frontend application with a backend API and PostgreSQL database.
+The project focuses on relational design and on letting the database itself guarantee correctness: composite foreign keys, check constraints, a trigger, a view, indexes (including a trigram index for fuzzy search), a generated column and row-level locking inside transactions.
 
-**Submission:** DBMS Mid-Sem Evaluation  
-**Project Status:** Design and Initial Development
+**Status:** complete – every workflow below is implemented, migrated, seeded and covered by automated tests.
 
-## 2. Objectives
+### Team roles
 
-- Design a normalized relational database for hotel and reservation management.
-- Model entities, relationships, keys, and constraints using an EER diagram.
-- Support hotel discovery, room selection, booking, and payment management.
-- Implement secure authentication and role-based access for customers and hotel staff.
-- Maintain booking history, payment records, and customer reviews.
-- Develop a full-stack application integrated with a relational database.
+| Role | Area |
+|---|---|
+| M1 – Database + Technical Lead | Schema, Alembic migrations, constraints, seed data, indexes, view, trigger, integration |
+| M2 – Authentication Backend | Registration, login, password hashing, JWT, hotel-role checks |
+| M3 – Hotel + Room Backend | Hotel, room-type and room APIs, availability query, fuzzy search |
+| M4 – Booking Backend | Transactional booking, payments, cancellation, completion, reviews |
+| M5 – Customer Frontend | Search, hotel details, checkout, booking history |
+| M6 – Manager Frontend + Reporting | Manager dashboard, inventory, team, reports, documentation |
 
-## 3. Proposed Technology Stack
+## 2. Features
+
+**Customers**
+- Fuzzy hotel search that tolerates typos (`mumbia`), word prefixes (`hyder`), several words in any order (`taj mumbai`) and old city names (`bombay`, `bangalore`).
+- Live availability for chosen dates and guest count, then multi-room booking at one hotel.
+- Simulated payment, booking history, cancellation before check-in (successful payments become refunds), checkout and one review per completed stay.
+
+**Hotel owners, managers and staff** (`/manager`, shown only to hotel members)
+- Hotel profile, room types and physical rooms, with room status (active / maintenance / inactive).
+- Rooms coloured by tonight's occupancy (occupied / vacant / out of service) and per-room booking history.
+- Reservations, payments and reviews for the selected hotel.
+- SQL reports: summary view, monthly revenue, popular room types, top-rated hotels, repeat customers.
+- Team management: the owner grants, changes or removes `manager` and `staff` roles by email.
+
+## 3. Technology Stack
 
 | Component | Technology |
 |---|---|
-| Frontend | Next.js |
-| Backend | FastAPI |
-| Database | PostgreSQL |
-| Database Migrations | Alembic |
-| API Communication | REST APIs |
-| Version Control | Git and GitHub |
+| Database | PostgreSQL 16 with the `citext` and `pg_trgm` extensions |
+| Migrations | Alembic (5 revisions) |
+| Backend | FastAPI (async), SQLAlchemy 2 (asyncio), psycopg 3, Pydantic 2 |
+| Authentication | JWT (python-jose), bcrypt password hashes |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
+| Tests | pytest against throwaway PostgreSQL schemas |
+| Deployment | Docker Compose (db, backend, frontend) |
 
-## 4. High-Level Architecture
-
-The application follows a three-tier architecture:
+## 4. Architecture
 
 ```text
-        Customer / Hotel Manager
-                  |
-                  v
-          Next.js Frontend
-                  |
-             REST APIs
-                  |
-                  v
-            FastAPI Backend
-                  |
-                  v
-          PostgreSQL Database
+        Customer / Hotel owner, manager, staff
+                         |
+                         v
+                Next.js frontend (:3000)
+                         |   REST + JWT
+                         v
+                FastAPI backend (:8000)
+                         |   SQLAlchemy (async), transactions
+                         v
+                 PostgreSQL 16 (:5433)
 ```
 
-- **Frontend:** Provides hotel search, room selection, booking checkout, and customer and manager dashboards.
-- **Backend:** Handles authentication, authorization, input validation, booking operations, availability checks, and hotel-level access control.
-- **Database:** Stores users, hotels, rooms, bookings, payments, reviews, and related records.
-- **Migrations:** Alembic is planned for managing database schema changes.
+- **Frontend:** customer pages (search, hotel details, checkout, bookings) and the manager workspace (dashboard, hotels, team, room types, rooms, reservations, payments, reviews, reports).
+- **Backend:** authentication, `require_hotel_role` access checks, validation, transactional booking, and the SQL reports. Routers in `backend/app/routers`, logic in `backend/app/services`.
+- **Database:** the single source of truth. Integrity rules live in the schema wherever possible, so they hold even for direct SQL.
+- **Migrations:** `backend/alembic/versions` builds the schema from empty (`alembic upgrade head`) and can be rolled back (`alembic downgrade base`).
 
 ## 5. Database Design
 
-The proposed relational schema consists of ten tables.
+The schema has ten tables.
 
 | Table | Purpose |
 |---|---|
@@ -152,72 +166,95 @@ Normal forms are checked one relation at a time, so they do not detect a fact st
 - **`hotels.search_text`** is derived from the name, city, state, country and description, but it is a `STORED` generated column: PostgreSQL recomputes it on every write and rejects direct updates, so it cannot become inconsistent. It exists to carry the trigram index used by fuzzy search.
 - **`hotels.registered_by`** and the owner row in `hotel_members` record different facts: who registered the hotel, and who currently has owner access. Ownership can change without rewriting history.
 
-## 6. Proposed Application Workflows
+### DBMS objects
 
-### Workflow 1: Hotel Search and Room Selection
+| Object | Name | Purpose |
+|---|---|---|
+| View | `hotel_booking_summary` | Per-hotel booking counts by status, revenue and rating from three CTEs; every hotel appears, even with no bookings |
+| Trigger | `trg_enforce_review_eligibility` | Before insert/update on `reviews`: the booking exists, belongs to the reviewer, is `completed` and is at the reviewed hotel |
+| Generated column | `hotels.search_text` (`STORED`) | Lower-cased name, city, state, country and description for search |
+| Indexes | 10 named indexes | Including GIN trigram `idx_hotels_search_text_trgm`, and B-tree indexes on `hotels(city, status)`, `rooms(hotel_id, room_type_id, status)`, `bookings(user_id, check_in)`, `bookings(hotel_id, check_in)` and foreign keys |
+| Extensions | `citext`, `pg_trgm` | Case-insensitive emails; trigram similarity (`<%`, `word_similarity`) |
+| Locking | `SELECT … FOR UPDATE` in `create_booking` | Locks candidate rooms inside the booking transaction so two customers can't get the same room |
 
-Customers search for hotels by location, browse available room types, compare prices, and select rooms according to guest capacity and stay dates.
+### Seed data
 
-### Workflow 2: Booking and Payment
+`database/seed.sql` (generated by `database/seed.py`) loads 735 consistent rows; migration `0005` adds 16 city aliases, for **751 rows** in total.
 
-Customers create reservations, request one or more rooms, verify availability, and initiate payment. The system maintains corresponding booking and payment records.
+| users | hotels | hotel_members | room_types | rooms | bookings | booking_rooms | payments | reviews | city_aliases |
+|---|---|---|---|---|---|---|---|---|---|
+| 50 | 10 | 15 | 30 | 100 | 150 | 180 | 140 | 60 | 16 |
 
-### Workflow 3: Booking Management and Reviews
+## 6. SQL Queries
 
-Customers view their reservations, cancel eligible bookings, and submit ratings and reviews after an eligible completed stay.
+`database/queries.sql` holds the standalone versions; the backend runs the same SQL with bound parameters.
 
-## 7. Important Design Considerations
+| # | Purpose | Concepts | Used by |
+|---|---|---|---|
+| 1 | Available room types for dates and guests | Joins, correlated `NOT EXISTS` overlap check, `GROUP BY`/`HAVING` | Search, hotel page (`hotel_service.py`) |
+| 2 | Booking history with rooms, totals, latest payment, rating | CTE, `LEFT JOIN LATERAL`, date arithmetic | Manager reservations (`report_service.py`) |
+| 3 | Monthly revenue from successful payments | `DATE_TRUNC`, `TO_CHAR`, `COUNT(DISTINCT)`, `SUM` | Manager reports |
+| 4 | Most popular room types | 4-table join, `COUNT`, `AVG`, `SUM`, `LIMIT` | Manager reports |
+| 5 | Top-rated hotels (≥ 3 reviews, ≥ 3.5 average) | `AVG`, `MIN`, `MAX`, `HAVING` | Manager reports |
+| 6 | Repeat customers with nights and spend | 2 CTEs, `COUNT … FILTER`, `COALESCE(SUM … FILTER)`, `HAVING` | Manager reports |
+| – | Fuzzy hotel search | 5 CTEs, `unnest`, `pg_trgm` `<%` / `word_similarity`, `UNION`, window `MAX() OVER` | Search bar (`hotel_service.py`) |
 
-- **Multi-hotel support:** Hotel-owned records are associated with a hotel identifier to support tenant-level access control.
-- **Room availability:** Overlapping reservations must be checked transactionally to prevent double-booking of physical rooms.
-- **Historical pricing:** The booked nightly rate is preserved independently of future price changes.
-- **Authentication security:** Passwords are stored as strong hashes rather than plaintext.
-- **Data consistency:** Cross-table relationships, booking status transitions, guest limits, and review eligibility require appropriate validation.
-- **Sensitive configuration:** Payment credentials and other secrets must be stored in environment variables.
+## 7. Application Workflows
 
-## 8. Current Progress : Mid-Sem
+1. **Search and availability** – `/` and `/hotels`: ranked fuzzy search over `hotels` and `city_aliases`, then Query 1 counts free rooms per room type for the dates.
+2. **Booking and payment** – `/hotels/[id]` → `/checkout`: in one transaction the backend locks candidate `rooms`, checks overlaps, inserts `bookings` (`pending`) and `booking_rooms` with the nightly rate as a snapshot; a successful payment in `payments` sets the booking to `confirmed`.
+3. **Manage a booking** – `/bookings`: cancel before check-in (successful payments become `refunded`), complete a stay after check-in night, then leave one review (checked by the trigger).
+4. **Run a hotel** – `/manager`: edit inventory and room status, see tonight's occupancy and per-room history, manage the team, and read the SQL reports.
 
-The following section should reflect the actual state of the repository at submission time.
+## 8. Design Decisions
 
-- [x] Defined the project scope and initial assumptions.
-- [x] Prepared the proposed relational schema.
-- [x] Identified primary keys, foreign keys, and important integrity constraints.
-- [x] Documented entity relationships and normalization decisions.
-- [x] Proposed the technology stack and high-level application architecture.
-- [x] Identified the major application workflows.
-- [ ] Implemented and tested all database tables and constraints.
-- [ ] Developed and integrated the frontend and backend.
-- [ ] Implemented and tested end-to-end booking workflows.
-
-*Update the checklist above to match the implementation completed by your team before submission.*
+- **Multi-hotel isolation:** every hotel-owned row carries `hotel_id`; composite foreign keys keep rooms, room types and booking lines in the same hotel, and every manager endpoint checks the caller's role in `hotel_members`.
+- **No double-booking:** stays are half-open intervals `[check_in, check_out)`; only `pending` and `confirmed` bookings hold rooms; candidate rooms are locked with `FOR UPDATE` before the overlap check.
+- **Historical pricing:** `booking_rooms.nightly_rate` is copied at booking time, so later price changes don't alter past totals or revenue.
+- **Security:** bcrypt password hashes, JWT bearer tokens, all SQL parameterised, secrets in environment variables (`.env`, not committed).
+- **Money:** `NUMERIC(12,2)` in INR everywhere.
 
 ## 9. Repository Structure
 
-The repository is expected to follow a structure similar to the following as development progresses:
-
 ```text
-hotel-booking-system/
-├── frontend/               # Next.js application
-├── backend/                # FastAPI application
+HotelResv/
+├── backend/
+│   ├── app/
+│   │   ├── models/          # 10 SQLAlchemy models
+│   │   ├── routers/         # auth, hotels (+ team), booking, manager, reports
+│   │   ├── services/        # business logic and report SQL
+│   │   ├── schemas/         # Pydantic request/response models
+│   │   └── dependencies/    # authentication and hotel-role checks
+│   ├── alembic/versions/    # migrations 0001–0005
+│   ├── scripts/             # seed_if_empty.py (run on container start)
+│   └── tests/               # pytest suite (unit + PostgreSQL)
 ├── database/
-│   ├── schema.sql          # Table definitions and constraints
-│   ├── seed.sql            # Sample data (planned)
-│   └── queries.sql         # SQL queries (planned)
-├── migrations/             # Database migrations
-├── docs/
-│   └── database-design.pdf # EER diagram and schema documentation
-└── README.md
+│   ├── schema.sql           # full schema, trigger and city aliases
+│   ├── indexes.sql          # named indexes
+│   ├── views.sql            # hotel_booking_summary
+│   ├── queries.sql          # Queries 1–6
+│   ├── seed.py / seed.sql   # deterministic seed data (735 rows)
+├── frontend/
+│   ├── app/                 # Next.js routes (customer pages + /manager)
+│   ├── components/          # UI components (manager/ for the dashboard)
+│   ├── lib/                 # API client, auth context, types
+│   └── public/images/       # hotel and room photos (Unsplash, see CREDITS.md)
+├── docs/                    # database design PDF
+├── API_CONTRACTS.md         # every endpoint, access rule and error code
+├── DATABASE_SCHEMA.md       # ORM model reference
+├── docker-compose.yml       # db, backend, frontend
+└── docker-compose.dev.yml   # hot-reload override
 ```
 
-*The directory structure is illustrative. Update it to match the files actually present in the repository.*
+## 10. Running the Project
 
-### Run with Docker
+### With Docker (recommended)
 
 The app runs as three containers: `db` (PostgreSQL 16), `backend` (FastAPI) and `frontend` (Next.js). The only requirement is Docker Desktop.
 
 ```bash
-cp .env.example .env              # optional; every variable has a default
-docker compose up --build         # production-style images
+cp .env.example .env              # then set JWT_SECRET_KEY (32+ characters)
+docker compose up --build
 ```
 
 | Service  | URL / port                                   |
@@ -226,7 +263,16 @@ docker compose up --build         # production-style images
 | Backend  | http://localhost:8000 (docs at `/docs`)      |
 | Database | `localhost:5433` (5433 avoids a local Postgres on 5432) |
 
-On start, the backend runs `alembic upgrade head` and loads `database/seed.sql` (735 rows) if the `users` table is empty. All seeded users log in with their email and the password `secret`, e.g. `aarav.sharma1@example.com` / `secret`. Set `SEED_ON_START=false` to skip seeding.
+On start, the backend runs `alembic upgrade head` and loads `database/seed.sql` if the `users` table is empty. Set `SEED_ON_START=false` to skip seeding.
+
+**Demo logins** (every seeded user's password is `secret`):
+
+| Email | Access |
+|---|---|
+| `aarav.sharma1@example.com` | Owner of hotel 1 (Taj Mahal Palace Suites) |
+| `vivaan.verma2@example.com` | Owner of hotel 2, manager of hotel 1 |
+| `aditya.patel3@example.com` | Owner of hotel 3, manager of hotel 2 |
+| `ananya.sharma11@example.com` | Customer with several bookings |
 
 **Dev mode (hot reload).** Source folders are mounted into the containers, so code changes apply without a rebuild:
 
@@ -234,7 +280,7 @@ On start, the backend runs `alembic upgrade head` and loads `database/seed.sql` 
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-Rebuild (`--build`) after changing `requirements.txt` or `package.json`.
+Rebuild (`--build`) after changing `requirements.txt` or `package.json`, and after pulling new code.
 
 **Useful commands**
 
@@ -248,18 +294,42 @@ docker compose exec backend pytest -q
 
 `NEXT_PUBLIC_API_BASE_URL` is baked into the frontend at build time, and the browser uses it, so it must be a host URL such as `http://localhost:8000`, not `http://backend:8000`.
 
-## 10. Future Work
+### Without Docker
 
-The planned development work includes:
+```bash
+# Backend (needs a local PostgreSQL 16 and DATABASE_URL / JWT_SECRET_KEY in .env)
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+python scripts/seed_if_empty.py
+uvicorn app.main:app --reload
 
-- Implementing the PostgreSQL schema and database migrations.
-- Building REST APIs for hotel search, room availability, bookings, payments, and reviews.
-- Developing customer and hotel manager interfaces.
-- Enforcing transactional room allocation and preventing overlapping reservations.
-- Adding indexes, views, triggers, or other suitable DBMS features.
-- Implementing complex SQL queries and reports.
-- Testing database constraints and end-to-end application workflows.
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
 
-## 11. Conclusion
+### Tests
 
-The Hotel Booking System is designed to demonstrate the application of DBMS concepts to a realistic reservation-management problem. The project emphasizes a structured relational schema, data integrity, normalization, transaction safety, and full-stack database integration. The mid-sem deliverable documents the proposed database design, application architecture, workflows, and progress toward a functional system.
+```bash
+cd backend
+createdb hotelresv_test
+TEST_DATABASE_URL=postgresql+psycopg://localhost/hotelresv_test pytest -q   # JWT_SECRET_KEY must be set (.env or environment)
+```
+
+The PostgreSQL tests build their tables in a throwaway schema and drop it afterwards; without `TEST_DATABASE_URL` they are skipped and only the unit tests run. The full suite has 77 tests.
+
+## 11. Limitations and Future Work
+
+- **Payments are simulated:** the client chooses the outcome; a real gateway would confirm it through a webhook.
+- **Unpaid bookings never expire:** `pending` bookings keep holding rooms; a timeout job should release them.
+- **No platform administrator:** new hotels are active immediately, and approving or suspending hotels has no separate role.
+- **Overlap rule enforced in the application:** a PostgreSQL exclusion constraint (`btree_gist` on a date range) would let the database itself reject double-bookings.
+- **`bookings.guest_count`** is a stored total of its booking lines that no constraint keeps in sync.
+- **Dates use the server's clock,** not each hotel's `timezone`.
+
+## 12. Conclusion
+
+HotelResv applies DBMS concepts to a realistic reservation problem: a schema normalized to BCNF where possible and deliberately denormalized only where constraints guard the copies, integrity enforced by composite keys, checks and a trigger, reporting through a view and analytical SQL, typo-tolerant search with trigram indexes, and transactional booking with row-level locking, all behind a working full-stack application.
