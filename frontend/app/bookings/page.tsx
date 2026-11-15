@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { hotelImage } from "@/lib/images";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
 import type { BookingStatus } from "@/lib/types";
@@ -42,9 +44,9 @@ interface BookingDetail {
 
 const statusStyles: Record<BookingStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
-  confirmed: "bg-emerald-100 text-emerald-700",
+  confirmed: "bg-lagoon-100 text-lagoon-700",
   cancelled: "bg-rose-100 text-rose-700",
-  completed: "bg-slate-100 text-slate-700",
+  completed: "bg-sand-100 text-sand-700",
 };
 
 function formatPrice(n: number) {
@@ -135,8 +137,8 @@ export default function BookingsPage() {
   if (authLoading) {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-12">
-        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
-        <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
+        <div className="h-8 w-48 animate-pulse rounded bg-sand-200" />
+        <div className="h-40 animate-pulse rounded-xl bg-sand-100" />
       </main>
     );
   }
@@ -144,21 +146,21 @@ export default function BookingsPage() {
   if (!user) {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-6 px-4 py-16">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900">Sign in to view bookings</h1>
-          <p className="mt-2 text-sm text-slate-600">
+        <div className="w-full max-w-md rounded-xl border border-sand-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-bold text-sand-900">Sign in to view bookings</h1>
+          <p className="mt-2 text-sm text-sand-600">
             Access your past and upcoming reservations.
           </p>
           <div className="mt-6 flex justify-center gap-4">
             <Link
               href="/login"
-              className="rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+              className="rounded-md bg-clay-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-clay-700"
             >
               Sign in
             </Link>
             <Link
               href="/register"
-              className="rounded-md border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-sand-300 px-5 py-2.5 text-sm font-semibold text-sand-700 hover:bg-sand-50"
             >
               Register
             </Link>
@@ -171,10 +173,10 @@ export default function BookingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-bold tracking-tight text-sand-900">
           My bookings
         </h1>
-        <p className="text-slate-600">
+        <p className="text-sand-600">
           Manage your room reservations, view transaction history, and post reviews.
         </p>
       </div>
@@ -182,7 +184,7 @@ export default function BookingsPage() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2].map((i) => (
-            <div key={i} className="h-44 animate-pulse rounded-xl bg-slate-100" />
+            <div key={i} className="h-44 animate-pulse rounded-xl bg-sand-100" />
           ))}
         </div>
       ) : error ? (
@@ -196,14 +198,14 @@ export default function BookingsPage() {
           </button>
         </div>
       ) : bookings.length === 0 ? (
-        <section className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
-          <p className="text-lg font-medium text-slate-700">No bookings yet</p>
-          <p className="mt-1 text-sm text-slate-500">
+        <section className="rounded-xl border border-dashed border-sand-300 bg-white p-12 text-center text-sand-500">
+          <p className="text-lg font-medium text-sand-700">No bookings yet</p>
+          <p className="mt-1 text-sm text-sand-500">
             Browse our curated selection of hotels and reserve your next stay.
           </p>
           <Link
             href="/hotels"
-            className="mt-4 inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+            className="mt-4 inline-block rounded-md bg-clay-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-clay-700"
           >
             Explore hotels
           </Link>
@@ -213,18 +215,30 @@ export default function BookingsPage() {
           {bookings.map((booking) => (
             <article
               key={booking.id}
-              className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="flex flex-col overflow-hidden rounded-2xl border border-sand-200 bg-white shadow-sm md:flex-row"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              {booking.hotel_id !== null && (
+                <div className="relative h-40 shrink-0 bg-sand-100 md:h-auto md:w-56">
+                  <Image
+                    src={hotelImage(booking.hotel_id)}
+                    alt=""
+                    fill
+                    sizes="(min-width: 768px) 14rem, 100vw"
+                    className={`object-cover ${booking.status === "cancelled" ? "grayscale" : ""}`}
+                  />
+                </div>
+              )}
+              <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sand-100 pb-4">
                 <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-sand-400">
                     Reservation
                   </span>
-                  <h2 className="text-lg font-bold text-slate-900">
+                  <h2 className="text-lg font-bold text-sand-900">
                     {booking.hotel_id !== null && booking.hotel_name ? (
                       <Link
                         href={`/hotels/${booking.hotel_id}`}
-                        className="hover:text-indigo-600"
+                        className="hover:text-clay-600"
                       >
                         {booking.hotel_name}
                       </Link>
@@ -233,7 +247,7 @@ export default function BookingsPage() {
                     )}
                   </h2>
                   {booking.hotel_name && (
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-sand-500">
                       {booking.hotel_city ? `${booking.hotel_city} · ` : ""}
                       Booking #{booking.id}
                     </p>
@@ -257,7 +271,7 @@ export default function BookingsPage() {
                   {booking.status === "confirmed" && (
                     <button
                       onClick={() => handleCompleteStay(booking.id)}
-                      className="rounded-md bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                      className="rounded-md bg-lagoon-50 px-3 py-1 text-xs font-medium text-lagoon-700 hover:bg-lagoon-100"
                     >
                       Complete Stay
                     </button>
@@ -265,7 +279,7 @@ export default function BookingsPage() {
                   {booking.status === "completed" && !booking.review && (
                     <button
                       onClick={() => setReviewBookingId(booking.id)}
-                      className="rounded-md bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                      className="rounded-md bg-clay-50 px-3 py-1 text-xs font-medium text-clay-700 hover:bg-clay-100"
                     >
                       Write Review
                     </button>
@@ -275,27 +289,27 @@ export default function BookingsPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
                 <div>
-                  <span className="text-slate-500">Check-in</span>
-                  <p className="font-medium text-slate-800">{booking.check_in}</p>
+                  <span className="text-sand-500">Check-in</span>
+                  <p className="font-medium text-sand-800">{booking.check_in}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Check-out</span>
-                  <p className="font-medium text-slate-800">{booking.check_out}</p>
+                  <span className="text-sand-500">Check-out</span>
+                  <p className="font-medium text-sand-800">{booking.check_out}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Guests</span>
-                  <p className="font-medium text-slate-800">{booking.guest_count} guest{booking.guest_count > 1 ? "s" : ""}</p>
+                  <span className="text-sand-500">Guests</span>
+                  <p className="font-medium text-sand-800">{booking.guest_count} guest{booking.guest_count > 1 ? "s" : ""}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Total Price</span>
-                  <p className="font-bold text-slate-900">{formatPrice(Number(booking.total))}</p>
+                  <span className="text-sand-500">Total Price</span>
+                  <p className="font-bold text-sand-900">{formatPrice(Number(booking.total))}</p>
                 </div>
               </div>
 
               {/* Rooms reserved */}
               {booking.rooms && booking.rooms.length > 0 && (
-                <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-                  <span className="font-semibold text-slate-700">Rooms: </span>
+                <div className="rounded-lg bg-sand-50 p-3 text-xs text-sand-600">
+                  <span className="font-semibold text-sand-700">Rooms: </span>
                   {booking.rooms.map((r, i) => (
                     <span key={i} className="mr-3">
                       {r.room_type_name} (₹{r.nightly_rate}/night)
@@ -307,17 +321,17 @@ export default function BookingsPage() {
 
               {/* Payment status badge / history */}
               {booking.payments && booking.payments.length > 0 && (
-                <div className="text-xs text-slate-500 flex items-center gap-2">
+                <div className="text-xs text-sand-500 flex items-center gap-2">
                   <span>Payments:</span>
                   {booking.payments.map((p) => (
                     <span
                       key={p.id}
                       className={`rounded px-2 py-0.5 font-medium capitalize ${
                         p.status === "successful"
-                          ? "bg-emerald-50 text-emerald-700"
+                          ? "bg-lagoon-50 text-lagoon-700"
                           : p.status === "refunded"
                           ? "bg-amber-50 text-amber-700"
-                          : "bg-slate-100 text-slate-600"
+                          : "bg-sand-100 text-sand-600"
                       }`}
                     >
                       {p.status} ({formatPrice(Number(p.amount))})
@@ -328,13 +342,14 @@ export default function BookingsPage() {
 
               {/* Review display if exists */}
               {booking.review && (
-                <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-slate-700">
+                <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-sand-700">
                   <span className="font-semibold text-amber-700">Your Rating: {"★".repeat(booking.review.rating)}{"☆".repeat(5 - booking.review.rating)}</span>
                   {booking.review.comment && (
-                    <p className="mt-1 text-slate-600 italic">&ldquo;{booking.review.comment}&rdquo;</p>
+                    <p className="mt-1 text-sand-600 italic">&ldquo;{booking.review.comment}&rdquo;</p>
                   )}
                 </div>
               )}
+              </div>
             </article>
           ))}
         </div>
@@ -342,12 +357,12 @@ export default function BookingsPage() {
 
       {/* Review Modal */}
       {reviewBookingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-sand-900/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-slate-900">Review Booking #{reviewBookingId}</h3>
+            <h3 className="text-lg font-bold text-sand-900">Review Booking #{reviewBookingId}</h3>
             <form onSubmit={handleSubmitReview} className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-sand-700">
                   Rating (1 to 5 stars)
                 </label>
                 <div className="mt-1 flex gap-2">
@@ -356,7 +371,7 @@ export default function BookingsPage() {
                       type="button"
                       key={star}
                       onClick={() => setRating(star)}
-                      className={`text-2xl ${rating >= star ? "text-amber-400" : "text-slate-300"}`}
+                      className={`text-2xl ${rating >= star ? "text-amber-400" : "text-sand-300"}`}
                     >
                       ★
                     </button>
@@ -364,7 +379,7 @@ export default function BookingsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-sand-700">
                   Comment (optional)
                 </label>
                 <textarea
@@ -372,21 +387,21 @@ export default function BookingsPage() {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Share your experience..."
-                  className="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  className="mt-1 w-full rounded-md border border-sand-300 p-2 text-sm text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setReviewBookingId(null)}
-                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-sand-300 px-4 py-2 text-sm font-medium text-sand-700 hover:bg-sand-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={reviewSubmitting}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="rounded-md bg-clay-600 px-4 py-2 text-sm font-semibold text-white hover:bg-clay-700 disabled:opacity-50"
                 >
                   {reviewSubmitting ? "Submitting..." : "Submit Review"}
                 </button>
