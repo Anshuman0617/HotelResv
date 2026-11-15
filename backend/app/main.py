@@ -8,6 +8,7 @@ from app.database import get_db
 from app.routers.auth import router as auth_router
 from app.routers.booking import router as booking_router
 from app.routers.hotels import router as hotels_router
+from app.routers.manager import router as manager_router
 from app.routers.reports import router as reports_router
 
 app = FastAPI(
@@ -19,6 +20,7 @@ app.include_router(auth_router)
 app.include_router(hotels_router)
 app.include_router(booking_router)
 app.include_router(reports_router)
+app.include_router(manager_router)
 
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 app.add_middleware(

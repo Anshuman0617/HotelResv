@@ -220,3 +220,18 @@ def test_hotel_report_access(context, name):
     assert get(path, as_user="cust1").status_code == 403
     assert get(path, as_user=None).status_code == 401
     assert get(f"/api/manager/hotels/{ids['b']}/reports/{name}", as_user="owner").status_code == 403
+
+
+def test_member_hotels_lists_only_own_memberships(context):
+    get, ids = context
+
+    def hotels(as_user):
+        response = get("/api/manager/hotels", as_user=as_user)
+        assert response.status_code == 200, response.text
+        return [(row["id"], row["role"]) for row in response.json()["data"]]
+
+    assert hotels("owner") == [(ids["a"], "owner")]
+    assert hotels("staff") == [(ids["a"], "staff")]
+    assert hotels("outsider") == [(ids["b"], "owner")]  # registered C but is not a member
+    assert hotels("cust1") == []
+    assert get("/api/manager/hotels", as_user=None).status_code == 401
