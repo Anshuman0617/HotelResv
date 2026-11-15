@@ -9,6 +9,8 @@ from fastapi import Header, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
@@ -67,7 +69,12 @@ def context():
     with admin.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS citext"))
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-    engine = create_engine(url, connect_args={"options": f"-csearch_path={schema},public"})
+    search_path = {"options": f"-csearch_path={schema},public"}
+    engine = create_engine(url, connect_args=search_path)
+    # The app uses an async engine. NullPool: TestClient runs requests on its
+    # own event loop, and pooled async connections must not outlive that loop.
+    async_engine = create_async_engine(url, connect_args=search_path, poolclass=NullPool)
+    async_sessions = async_sessionmaker(async_engine, autoflush=False, expire_on_commit=False)
     # checkfirst=False: search_path includes public, so the default existence
     # check would find the real tables there and skip creating them in the
     # test schema, sending test rows into public.
@@ -124,8 +131,8 @@ def context():
 
         ids = {"a": a.id, "b": b.id, "c": c.id, "b1": b1.id, "b2": b2.id, "b3": b3.id, "r1": r1.id, "r2": r2.id, "r4": r4.id, **{n: u.id for n, u in users.items()}}
 
-    def database():
-        with sessions() as db:
+    async def database():
+        async with async_sessions() as db:
             yield db
 
     def user(x_test_user: int | None = Header(default=None)):
@@ -139,9 +146,10 @@ def context():
         def get(path, as_user="owner"):
             headers = {"X-Test-User": str(ids[as_user])} if as_user else {}
             return client.get(path, headers=headers)
-        yield get, ids
+        yield get, ids, sessions
     app.dependency_overrides.clear()
     engine.dispose()
+    async_engine.sync_engine.dispose()
     with admin.begin() as connection:
         connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
     admin.dispose()
@@ -156,7 +164,7 @@ def report(get, ids, name, hotel="a", **kwargs):
 
 
 def test_summary_uses_view(context):
-    get, ids = context
+    get, ids, _ = context
     data = report(get, ids, "summary")
     assert data["hotel_id"] == ids["a"]
     assert (data["total_bookings"], data["pending_bookings"], data["confirmed_bookings"], data["completed_bookings"], data["cancelled_bookings"]) == (3, 0, 1, 1, 1)
@@ -165,7 +173,7 @@ def test_summary_uses_view(context):
 
 
 def test_booking_history_totals_latest_payment_and_isolation(context):
-    get, ids = context
+    get, ids, _ = context
     rows = report(get, ids, "bookings")
     assert {row["booking_id"] for row in rows} == {ids["b1"], ids["b2"], ids["b3"]}
     b1 = next(row for row in rows if row["booking_id"] == ids["b1"])
@@ -179,20 +187,20 @@ def test_booking_history_totals_latest_payment_and_isolation(context):
 
 
 def test_monthly_revenue(context):
-    get, ids = context
+    get, ids, _ = context
     rows = report(get, ids, "revenue")
     assert [(r["revenue_month"], r["paid_bookings_count"], r["monthly_revenue"]) for r in rows] == [("2026-02", 1, 100), ("2026-01", 1, 600)]
 
 
 def test_popular_room_types(context):
-    get, ids = context
+    get, ids, _ = context
     rows = report(get, ids, "popular-room-types")
     assert [(r["room_type_name"], r["times_booked"], r["total_room_revenue"]) for r in rows] == [("Standard", 2, 300), ("Suite", 1, 400)]
     assert {r["hotel_id"] for r in rows} == {ids["a"]}
 
 
 def test_repeat_customers_scoped_to_hotel(context):
-    get, ids = context
+    get, ids, _ = context
     rows = report(get, ids, "repeat-customers")
     assert [r["user_id"] for r in rows] == [ids["cust1"]]
     assert rows[0]["total_bookings"] == 2 and rows[0]["total_nights_booked"] == 3
@@ -202,7 +210,7 @@ def test_repeat_customers_scoped_to_hotel(context):
 
 
 def test_top_rated_hotels(context):
-    get, ids = context
+    get, ids, _ = context
     response = get("/api/manager/reports/top-rated-hotels", as_user="outsider")
     assert response.status_code == 200
     rows = response.json()["data"]
@@ -212,7 +220,7 @@ def test_top_rated_hotels(context):
 
 @pytest.mark.parametrize("name", ["summary", "bookings", "revenue", "popular-room-types", "repeat-customers"])
 def test_hotel_report_access(context, name):
-    get, ids = context
+    get, ids, _ = context
     path = f"/api/manager/hotels/{ids['a']}/reports/{name}"
     assert get(path, as_user="owner").status_code == 200
     assert get(path, as_user="staff").status_code == 403
@@ -223,7 +231,7 @@ def test_hotel_report_access(context, name):
 
 
 def test_member_hotels_lists_only_own_memberships(context):
-    get, ids = context
+    get, ids, _ = context
 
     def hotels(as_user):
         response = get("/api/manager/hotels", as_user=as_user)
@@ -238,18 +246,15 @@ def test_member_hotels_lists_only_own_memberships(context):
 
 
 def test_room_history_groups_bookings_by_period(context):
-    get, ids = context
+    get, ids, sessions = context
     today = date.today()
     # Add bookings around today for room 101; the fixture's 2026 dates are all past.
-    session = app.dependency_overrides[get_db]()
-    db = next(session)
-    room = db.get(Room, ids["r1"])
-    cust = {n: db.get(User, ids[n]) for n in ("cust2", "cust3")}
-    current = add_booking(db, cust["cust2"], [(room, 100)], (today - timedelta(days=1)).isoformat(), 3, "confirmed")
-    upcoming = add_booking(db, cust["cust3"], [(room, 120)], (today + timedelta(days=5)).isoformat(), 2, "pending")
-    current_id, upcoming_id = current.id, upcoming.id
-    db.commit()
-    session.close()
+    with sessions.begin() as db:
+        room = db.get(Room, ids["r1"])
+        cust = {n: db.get(User, ids[n]) for n in ("cust2", "cust3")}
+        current = add_booking(db, cust["cust2"], [(room, 100)], (today - timedelta(days=1)).isoformat(), 3, "confirmed")
+        upcoming = add_booking(db, cust["cust3"], [(room, 120)], (today + timedelta(days=5)).isoformat(), 2, "pending")
+        current_id, upcoming_id = current.id, upcoming.id
 
     response = get(f"/api/manager/hotels/{ids['a']}/rooms/{ids['r1']}/bookings")
     assert response.status_code == 200, response.text
@@ -269,7 +274,7 @@ def test_room_history_groups_bookings_by_period(context):
 
 
 def test_room_history_access(context):
-    get, ids = context
+    get, ids, _ = context
     path = f"/api/manager/hotels/{ids['a']}/rooms/{ids['r1']}/bookings"
     assert get(path, as_user="owner").status_code == 200
     assert get(path, as_user="staff").status_code == 403
