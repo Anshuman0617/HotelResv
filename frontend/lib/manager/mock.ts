@@ -95,29 +95,6 @@ export type ManagerReservation = {
   rooms: ReservationRoom[];
 };
 
-export type PaymentStatus = "successful" | "pending" | "failed" | "refunded";
-
-export type ManagerPayment = {
-  id: string;
-  reservation_id: number;
-  hotel_id: number;
-  guest_name: string;
-  amount: number;
-  method: "UPI" | "Credit card" | "Debit card" | "Net banking";
-  status: PaymentStatus;
-  payment_date: string;
-};
-
-export type ManagerReview = {
-  id: number;
-  reservation_id: number;
-  hotel_id: number;
-  guest_name: string;
-  rating: number;
-  comment: string;
-  review_date: string;
-};
-
 export type MonthlyRevenueResult = {
   hotel_id: number;
   hotel_name: string;
@@ -577,52 +554,6 @@ export const managerReservations: ManagerReservation[] = [
       },
     ],
   },
-];
-
-export const managerPayments: ManagerPayment[] = [
-  { id: "PAY-11042", reservation_id: 11042, hotel_id: 1, guest_name: "Ananya Sharma", amount: 25500, method: "UPI", status: "successful", payment_date: "2026-11-04" },
-  { id: "PAY-11038", reservation_id: 11038, hotel_id: 1, guest_name: "Rohan Mehta", amount: 45400, method: "Credit card", status: "pending", payment_date: "2026-11-03" },
-  { id: "PAY-11031", reservation_id: 11031, hotel_id: 1, guest_name: "Diya Nair", amount: 34000, method: "Debit card", status: "successful", payment_date: "2026-10-10" },
-  { id: "PAY-11024", reservation_id: 11024, hotel_id: 1, guest_name: "Vikram Iyer", amount: 17000, method: "Net banking", status: "refunded", payment_date: "2026-10-28" },
-  { id: "PAY-20981", reservation_id: 20981, hotel_id: 2, guest_name: "Saanvi Reddy", amount: 21600, method: "UPI", status: "successful", payment_date: "2026-11-02" },
-  { id: "PAY-20974", reservation_id: 20974, hotel_id: 2, guest_name: "Arjun Patel", amount: 34500, method: "Credit card", status: "successful", payment_date: "2026-10-29" },
-  { id: "PAY-20969", reservation_id: 20969, hotel_id: 2, guest_name: "Meera Joshi", amount: 7200, method: "UPI", status: "pending", payment_date: "2026-11-06" },
-  { id: "PAY-20961", reservation_id: 20961, hotel_id: 2, guest_name: "Nikhil Rao", amount: 14000, method: "Debit card", status: "failed", payment_date: "2026-10-25" },
-  { id: "PAY-30612", reservation_id: 30612, hotel_id: 3, guest_name: "Kabir Singh", amount: 75000, method: "Credit card", status: "pending", payment_date: "2026-11-05" },
-  { id: "PAY-30608", reservation_id: 30608, hotel_id: 3, guest_name: "Neha Gupta", amount: 27000, method: "UPI", status: "successful", payment_date: "2026-10-15" },
-  { id: "PAY-30602", reservation_id: 30602, hotel_id: 3, guest_name: "Ishita Kapoor", amount: 32000, method: "Net banking", status: "failed", payment_date: "2026-11-01" },
-  { id: "PAY-30597", reservation_id: 30597, hotel_id: 3, guest_name: "Dev Malhotra", amount: 18800, method: "Debit card", status: "refunded", payment_date: "2026-10-21" },
-];
-
-export const managerReviews: ManagerReview[] = [
-  { id: 1, reservation_id: 11031, hotel_id: 1, guest_name: "Diya Nair", rating: 5, comment: "A peaceful stay, a spotless room, and a lovely view of the harbour. The team made check-in easy.", review_date: "2026-11-04" },
-  { id: 2, reservation_id: 11019, hotel_id: 1, guest_name: "Priya Menon", rating: 5, comment: "Wonderful location and thoughtful service throughout our weekend.", review_date: "2026-10-29" },
-  { id: 3, reservation_id: 11017, hotel_id: 1, guest_name: "Karan Desai", rating: 5, comment: "The room was comfortable and the breakfast was excellent.", review_date: "2026-10-26" },
-  { id: 4, reservation_id: 11015, hotel_id: 1, guest_name: "Aisha Khan", rating: 5, comment: "Beautiful property and very helpful staff. Would happily stay again.", review_date: "2026-10-23" },
-  { id: 5, reservation_id: 11012, hotel_id: 1, guest_name: "Rahul Verma", rating: 5, comment: "Great harbour-side location with clean, spacious rooms.", review_date: "2026-10-20" },
-  { id: 6, reservation_id: 11009, hotel_id: 1, guest_name: "Sneha Kulkarni", rating: 5, comment: "Everything was smooth from arrival to checkout. The staff were warm and attentive.", review_date: "2026-10-17" },
-  { id: 7, reservation_id: 11006, hotel_id: 1, guest_name: "Aditya Rao", rating: 5, comment: "Excellent service and a comfortable bed after a long trip.", review_date: "2026-10-14" },
-  { id: 8, reservation_id: 11003, hotel_id: 1, guest_name: "Mira Shah", rating: 5, comment: "A lovely boutique hotel close to the waterfront and city attractions.", review_date: "2026-10-11" },
-  { id: 9, reservation_id: 10998, hotel_id: 1, guest_name: "Naveen Bhat", rating: 5, comment: "The team was welcoming and the room was ready right on time.", review_date: "2026-10-08" },
-  { id: 10, reservation_id: 10994, hotel_id: 1, guest_name: "Tara Sood", rating: 5, comment: "Quiet, clean, and conveniently located. We enjoyed our stay.", review_date: "2026-10-05" },
-  { id: 11, reservation_id: 10991, hotel_id: 1, guest_name: "Ishaan Kapoor", rating: 5, comment: "The harbour view was a highlight, and service was consistently kind.", review_date: "2026-10-02" },
-  { id: 12, reservation_id: 10987, hotel_id: 1, guest_name: "Rhea Thomas", rating: 5, comment: "Comfortable rooms and an easy check-in experience.", review_date: "2026-09-29" },
-  { id: 13, reservation_id: 10983, hotel_id: 1, guest_name: "Manav Joshi", rating: 5, comment: "A polished stay with attentive staff and a great location.", review_date: "2026-09-26" },
-  { id: 14, reservation_id: 10979, hotel_id: 1, guest_name: "Zoya Ali", rating: 4, comment: "Very comfortable and well kept. The breakfast area was busy in the morning.", review_date: "2026-09-23" },
-  { id: 15, reservation_id: 10975, hotel_id: 1, guest_name: "Devika Nair", rating: 4, comment: "Friendly staff and a pleasant room; some street noise at night.", review_date: "2026-09-20" },
-  { id: 16, reservation_id: 10971, hotel_id: 1, guest_name: "Siddharth Sen", rating: 4, comment: "Good value and a convenient base for exploring Mumbai.", review_date: "2026-09-17" },
-  { id: 17, reservation_id: 20958, hotel_id: 2, guest_name: "Lavanya Rao", rating: 5, comment: "A quiet room, excellent service, and an ideal location for work.", review_date: "2026-11-03" },
-  { id: 18, reservation_id: 20954, hotel_id: 2, guest_name: "Vivek Nair", rating: 5, comment: "Very comfortable stay. The team was quick to help with every request.", review_date: "2026-10-31" },
-  { id: 19, reservation_id: 20950, hotel_id: 2, guest_name: "Amrita Das", rating: 5, comment: "Loved the calm courtyard and the thoughtful breakfast options.", review_date: "2026-10-28" },
-  { id: 20, reservation_id: 20946, hotel_id: 2, guest_name: "Sanjay Bose", rating: 5, comment: "Clean, modern room and a seamless check-in process.", review_date: "2026-10-25" },
-  { id: 21, reservation_id: 20942, hotel_id: 2, guest_name: "Nisha Krishnan", rating: 5, comment: "The staff were lovely and the hotel was peaceful despite being central.", review_date: "2026-10-22" },
-  { id: 22, reservation_id: 20938, hotel_id: 2, guest_name: "Ritvik Shah", rating: 5, comment: "A great business stay with a comfortable desk and reliable service.", review_date: "2026-10-19" },
-  { id: 23, reservation_id: 20934, hotel_id: 2, guest_name: "Pooja Iyer", rating: 5, comment: "Spacious room, welcoming staff, and a very enjoyable visit.", review_date: "2026-10-16" },
-  { id: 24, reservation_id: 20930, hotel_id: 2, guest_name: "Harish Menon", rating: 5, comment: "Convenient location and a restful room. Everything was well organized.", review_date: "2026-10-13" },
-  { id: 25, reservation_id: 20926, hotel_id: 2, guest_name: "Tanya Sethi", rating: 4, comment: "A pleasant stay with good service; the room could use brighter lighting.", review_date: "2026-10-10" },
-  { id: 26, reservation_id: 20922, hotel_id: 2, guest_name: "Aarav Kulkarni", rating: 4, comment: "Comfortable and clean, with a lovely courtyard view.", review_date: "2026-10-07" },
-  { id: 27, reservation_id: 20918, hotel_id: 2, guest_name: "Madhuri Sen", rating: 4, comment: "Helpful staff and a good location. Breakfast service was a little slow.", review_date: "2026-10-04" },
-  { id: 28, reservation_id: 20914, hotel_id: 2, guest_name: "Rakesh Pillai", rating: 3, comment: "The room was comfortable, though check-in took longer than expected.", review_date: "2026-10-01" },
 ];
 
 export const query3MockPreview: MockReportPreview<MonthlyRevenueResult> = {

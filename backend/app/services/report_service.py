@@ -184,3 +184,25 @@ def top_rated_hotels(db: Session) -> list[dict[str, Any]]:
 
 def repeat_customers(db: Session, hotel_id: int) -> list[dict[str, Any]]:
     return _rows(db, REPEAT_CUSTOMERS_SQL, hotel_id=hotel_id)
+
+
+PAYMENTS_SQL = text(
+    """
+    SELECT p.id AS payment_id, p.booking_id, u.full_name AS customer_name,
+           p.amount, p.currency, p.status AS payment_status, p.provider,
+           p.created_at, p.paid_at
+    FROM payments p
+    JOIN bookings b ON b.id = p.booking_id
+    JOIN users u ON u.id = b.user_id
+    JOIN booking_rooms br ON br.booking_id = b.id
+    JOIN room_types rt ON rt.id = br.room_type_id
+    WHERE rt.hotel_id = :hotel_id
+    GROUP BY p.id, p.booking_id, u.full_name, p.amount, p.currency, p.status, p.provider, p.created_at, p.paid_at
+    ORDER BY p.created_at DESC, p.id DESC
+    """
+)
+
+
+def hotel_payments(db: Session, hotel_id: int) -> list[dict[str, Any]]:
+    return _rows(db, PAYMENTS_SQL, hotel_id=hotel_id)
+
