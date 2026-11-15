@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import StatCard from "@/components/manager/StatCard";
 import ManagerQueryPreview from "@/components/manager/ManagerQueryPreview";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
+import { apiFetch } from "@/lib/api";
 import {
   getHotelDashboard,
   managerHotels,
@@ -24,16 +26,76 @@ const statusStyles: Record<ReservationStatus, string> = {
 };
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  try {
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(`${value}T00:00:00`));
+  } catch {
+    return value;
+  }
+}
+
+interface SummaryData {
+  hotel_id: number;
+  hotel_name: string;
+  city: string;
+  total_bookings: number;
+  total_revenue: number;
+  avg_rating: number | null;
+}
+
+interface ManagerReservationRow {
+  booking_id: number;
+  customer_name: string;
+  check_in: string;
+  check_out: string;
+  rooms_booked: number;
+  booking_status: ReservationStatus;
+  calculated_room_total: number;
 }
 
 export default function ManagerPage() {
-  const { selectedHotel } = useManagerHotel();
-  const dashboard = getHotelDashboard(selectedHotel.id);
+  const { hotels, selectedHotel, rooms } = useManagerHotel();
+  const mockFallback = getHotelDashboard(selectedHotel.id);
+
+  const [mounted, setMounted] = useState(false);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [recentBookings, setRecentBookings] = useState<ManagerReservationRow[] | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedHotel?.id) return;
+
+    // Fetch real summary report
+    apiFetch<SummaryData>(`/api/manager/hotels/${selectedHotel.id}/reports/summary`)
+      .then((data) => setSummary(data))
+      .catch(() => setSummary(null));
+
+    // Fetch real bookings report
+    apiFetch<ManagerReservationRow[]>(
+      `/api/manager/hotels/${selectedHotel.id}/reports/bookings?limit=5`
+    )
+      .then((data) => setRecentBookings(data))
+      .catch(() => setRecentBookings(null));
+  }, [selectedHotel.id]);
+
+  const hotelRooms = rooms.filter((r) => r.hotel_id === selectedHotel.id);
+  const availableRoomsCount = hotelRooms.filter((r) => r.status === "active").length;
+
+  const totalBookings = mounted && summary
+    ? summary.total_bookings
+    : mockFallback.totalBookings;
+  const totalRevenue = mounted && summary
+    ? Number(summary.total_revenue)
+    : mockFallback.totalRevenue;
+  const displayAvailableRooms = mounted && hotelRooms.length > 0
+    ? availableRoomsCount
+    : mockFallback.availableRooms;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -51,23 +113,23 @@ export default function ManagerPage() {
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total bookings"
-          value={String(dashboard.totalBookings)}
+          value={String(totalBookings)}
           hint="All reservation statuses"
         />
         <StatCard
           label="Total revenue"
-          value={currency.format(dashboard.totalRevenue)}
+          value={currency.format(totalRevenue)}
           hint="Successful payments"
         />
         <StatCard
           label="Available rooms"
-          value={String(dashboard.availableRooms)}
-          hint="Active rooms not held"
+          value={String(displayAvailableRooms)}
+          hint="Active physical rooms"
         />
         <StatCard
           label="Total hotels"
-          value={String(managerHotels.length)}
-          hint="Hotels on this account"
+          value={String(hotels.length || managerHotels.length)}
+          hint="Properties registered"
         />
       </section>
 
@@ -100,33 +162,69 @@ export default function ManagerPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {dashboard.recentReservations.map((reservation) => (
-                <tr key={reservation.id}>
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-slate-900">
-                      {reservation.guestName}
-                    </p>
-                    <p className="text-xs text-slate-500">#{reservation.id}</p>
-                  </td>
-                  <td className="px-5 py-3 whitespace-nowrap text-slate-600">
-                    {formatDate(reservation.checkIn)} –{" "}
-                    {formatDate(reservation.checkOut)}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {reservation.rooms}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${statusStyles[reservation.status]}`}
-                    >
-                      {reservation.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-right font-medium text-slate-900">
-                    {currency.format(reservation.amount)}
-                  </td>
-                </tr>
-              ))}
+              {recentBookings && recentBookings.length > 0 ? (
+                recentBookings.map((reservation) => (
+                  <tr key={reservation.booking_id}>
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-slate-900">
+                        {reservation.customer_name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        #{reservation.booking_id}
+                      </p>
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">
+                      {formatDate(reservation.check_in)} –{" "}
+                      {formatDate(reservation.check_out)}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {reservation.rooms_booked}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+                          statusStyles[reservation.booking_status] || "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {reservation.booking_status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right font-medium text-slate-900">
+                      {currency.format(Number(reservation.calculated_room_total) || 0)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                mockFallback.recentReservations.map((reservation) => (
+                  <tr key={reservation.id}>
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-slate-900">
+                        {reservation.guestName}
+                      </p>
+                      <p className="text-xs text-slate-500">#{reservation.id}</p>
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">
+                      {formatDate(reservation.checkIn)} –{" "}
+                      {formatDate(reservation.checkOut)}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {reservation.rooms}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+                          statusStyles[reservation.status] || "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {reservation.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right font-medium text-slate-900">
+                      {currency.format(reservation.amount)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
