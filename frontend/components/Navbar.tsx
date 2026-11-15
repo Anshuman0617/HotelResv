@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 
 const links = [
   { href: "/hotels", label: "Hotels" },
@@ -7,6 +10,8 @@ const links = [
 ];
 
 export default function Navbar() {
+  const { user, loading, logout } = useAuth();
+
   return (
     <header className="border-b border-slate-200 bg-white">
       <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
@@ -23,18 +28,44 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/login"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 transition-colors hover:border-indigo-600 hover:text-indigo-700"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-white transition-colors hover:bg-indigo-700"
-          >
-            Register
-          </Link>
+
+          {/* Auth area */}
+          {loading ? (
+            /* skeleton */
+            <div className="h-8 w-32 animate-pulse rounded-md bg-slate-100" />
+          ) : user ? (
+            <>
+              <span
+                className="max-w-[160px] truncate text-sm font-medium text-slate-700"
+                title={user.full_name}
+              >
+                {user.full_name.length > 20
+                  ? user.full_name.slice(0, 20) + "…"
+                  : user.full_name}
+              </span>
+              <button
+                onClick={logout}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 transition-colors hover:border-rose-400 hover:text-rose-600"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 transition-colors hover:border-indigo-600 hover:text-indigo-700"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-white transition-colors hover:bg-indigo-700"
+              >
+                Register
+              </Link>
+            </>
+          )}
         </div>
       </nav>
     </header>
