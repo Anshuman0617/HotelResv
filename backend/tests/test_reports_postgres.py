@@ -32,11 +32,11 @@ def at(day: str) -> datetime:
 
 def add_booking(db, user, rooms, check_in, nights, status):
     start = date.fromisoformat(check_in)
-    booking = Booking(user_id=user.id, check_in=start, check_out=start + timedelta(days=nights), guest_count=len(rooms), status=status)
+    booking = Booking(user_id=user.id, hotel_id=rooms[0][0].hotel_id, check_in=start, check_out=start + timedelta(days=nights), guest_count=len(rooms), status=status)
     db.add(booking)
     db.flush()
     for room, rate in rooms:
-        db.add(BookingRoom(booking_id=booking.id, room_type_id=room.room_type_id, room_id=room.id, nightly_rate=rate, guest_count=1))
+        db.add(BookingRoom(booking_id=booking.id, hotel_id=room.hotel_id, room_type_id=room.room_type_id, room_id=room.id, nightly_rate=rate, guest_count=1))
     db.flush()
     return booking
 

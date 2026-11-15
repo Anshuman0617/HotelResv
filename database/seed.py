@@ -274,6 +274,7 @@ def generate_seed_data() -> dict[str, list[dict[str, object]]]:
                 {
                     "id": br_id,
                     "booking_id": bid,
+                    "hotel_id": hid,
                     "room_type_id": int(r["room_type_id"]),
                     "room_id": allocated_room_id,
                     "nightly_rate": rate,
@@ -287,6 +288,7 @@ def generate_seed_data() -> dict[str, list[dict[str, object]]]:
             {
                 "id": bid,
                 "user_id": uid,
+                "hotel_id": hid,
                 "check_in": check_in,
                 "check_out": check_out,
                 "guest_count": total_guests,
@@ -447,8 +449,8 @@ def export_seed_sql(data: dict[str, list[dict[str, object]]], output_path: Path 
         ("hotel_members", ["hotel_id", "user_id", "role", "joined_at"]),
         ("room_types", ["id", "hotel_id", "name", "description", "max_guests", "base_price", "created_at"]),
         ("rooms", ["id", "hotel_id", "room_type_id", "room_number", "floor", "status"]),
-        ("bookings", ["id", "user_id", "check_in", "check_out", "guest_count", "status", "created_at"]),
-        ("booking_rooms", ["id", "booking_id", "room_type_id", "room_id", "nightly_rate", "guest_count", "created_at"]),
+        ("bookings", ["id", "user_id", "hotel_id", "check_in", "check_out", "guest_count", "status", "created_at"]),
+        ("booking_rooms", ["id", "booking_id", "hotel_id", "room_type_id", "room_id", "nightly_rate", "guest_count", "created_at"]),
         (
             "payments",
             ["id", "booking_id", "provider", "provider_reference", "amount", "currency", "status", "paid_at", "created_at"],

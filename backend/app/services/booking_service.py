@@ -76,7 +76,7 @@ async def create_booking(db: AsyncSession, user_id: int, request: BookingRequest
 
         candidates = (await db.scalars(select(Room).where(Room.hotel_id == request.hotel_id, Room.room_type_id.in_(room_types), Room.status == "active").order_by(Room.id).with_for_update())).all()
         occupied = set((await db.scalars(select(BookingRoom.room_id).join(Booking, Booking.id == BookingRoom.booking_id).where(BookingRoom.room_id.in_([r.id for r in candidates]), Booking.status.in_(["pending", "confirmed"]), Booking.check_in < request.check_out, Booking.check_out > request.check_in))).all())
-        booking = Booking(user_id=user_id, check_in=request.check_in, check_out=request.check_out, guest_count=sum(r.quantity * r.guests_per_room for r in requested), status="pending")
+        booking = Booking(user_id=user_id, hotel_id=request.hotel_id, check_in=request.check_in, check_out=request.check_out, guest_count=sum(r.quantity * r.guests_per_room for r in requested), status="pending")
         db.add(booking)
         await db.flush()
         for item in requested:
@@ -84,7 +84,7 @@ async def create_booking(db: AsyncSession, user_id: int, request: BookingRequest
             if len(available) < item.quantity:
                 raise HTTPException(status_code=409, detail="Not enough rooms available")
             for room in available[:item.quantity]:
-                db.add(BookingRoom(booking_id=booking.id, room_type_id=item.room_type_id, room_id=room.id, guest_count=item.guests_per_room, nightly_rate=room_types[item.room_type_id].base_price))
+                db.add(BookingRoom(booking_id=booking.id, hotel_id=request.hotel_id, room_type_id=item.room_type_id, room_id=room.id, guest_count=item.guests_per_room, nightly_rate=room_types[item.room_type_id].base_price))
             await db.flush()
         await db.flush()
         result = await booking_data(db, booking)
