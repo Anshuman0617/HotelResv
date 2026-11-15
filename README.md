@@ -64,7 +64,7 @@ The proposed relational schema consists of nine tables.
 | `hotel_members` | Manages hotel membership and staff roles. |
 | `room_types` | Stores room categories, occupancy limits, and base prices. |
 | `rooms` | Maintains physical room details and availability status. |
-| `bookings` | Stores customer reservations and stay dates. |
+| `bookings` | Stores customer reservations, the hotel they are at, and stay dates. |
 | `booking_rooms` | Records requested rooms, room assignments, and booked nightly rates. |
 | `payments` | Tracks payment attempts, transaction references, and payment status. |
 | `reviews` | Stores customer ratings and feedback for eligible bookings. |
@@ -75,6 +75,7 @@ The proposed relational schema consists of nine tables.
 - Users and hotels have a many-to-many membership relationship through `hotel_members`.
 - Each hotel can offer multiple room types and contain multiple physical rooms.
 - A user can create multiple bookings.
+- Each booking is at exactly one hotel, and every room in it must belong to that hotel.
 - A booking can contain multiple requested rooms and have multiple payment records.
 - A booking can have at most one review.
 - A requested room can be assigned to a physical room when allocation is performed.
@@ -95,6 +96,8 @@ The database design incorporates:
 The schema is designed to approximately satisfy **Third Normal Form (3NF)** by separating users, hotels, room types, physical rooms, bookings, payments, and reviews into distinct relations.
 
 The `hotel_members` table resolves the many-to-many relationship between users and hotels, while `booking_rooms` allows a booking to include multiple requested rooms. The booked nightly rate is stored as a snapshot to preserve historical pricing when a room type's base price changes.
+
+`booking_rooms.hotel_id` is deliberately redundant: it can be derived from `room_type_id`. It exists so that two composite foreign keys, `(booking_id, hotel_id) → bookings(id, hotel_id)` and `(room_type_id, hotel_id) → room_types(id, hotel_id)`, force every room in a booking to be at the booking's hotel. Because both keys must hold, the copy can never disagree with the source, so the redundancy cannot cause update anomalies. `rooms.hotel_id` follows the same pattern against `room_types`.
 
 ## 6. Proposed Application Workflows
 

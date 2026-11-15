@@ -57,8 +57,8 @@ alembic downgrade base
 | `HotelMember` | `hotel_members` | `(hotel_id, user_id)` | Composite PK linking `Hotel` and `User`. `role`: `'owner'`, `'manager'`, `'staff'`. |
 | `RoomType` | `room_types` | `id` (`BigInteger`) | `hotel`, `rooms`, `booking_rooms`. `UNIQUE(hotel_id, name)`. `max_guests > 0`, `base_price >= 0`. |
 | `Room` | `rooms` | `id` (`BigInteger`) | `hotel`, `room_type`, `booking_rooms`. `UNIQUE(hotel_id, room_number)`. Composite FK guarantees `room.hotel_id == room_type.hotel_id`. `status`: `'active'`, `'maintenance'`, `'inactive'`. |
-| `Booking` | `bookings` | `id` (`BigInteger`) | `user`, `booking_rooms`, `payments`, `review` (1:0..1). `check_out > check_in`, `guest_count > 0`. `status`: `'pending'`, `'confirmed'`, `'cancelled'`, `'completed'`. |
-| `BookingRoom` | `booking_rooms` | `id` (`BigInteger`) | `booking`, `room_type`, `room` (nullable until allocated). Composite FK guarantees allocated `room` belongs to `room_type`. Snapshots `nightly_rate`. |
+| `Booking` | `bookings` | `id` (`BigInteger`) | `user`, `hotel`, `booking_rooms`, `payments`, `review` (1:0..1). `hotel_id` is the booking's hotel; `UNIQUE(id, hotel_id)` is the target of `booking_rooms`' composite FK. `check_out > check_in`, `guest_count > 0`. `status`: `'pending'`, `'confirmed'`, `'cancelled'`, `'completed'`. |
+| `BookingRoom` | `booking_rooms` | `id` (`BigInteger`) | `booking`, `room_type`, `room` (nullable until allocated). Composite FK guarantees allocated `room` belongs to `room_type`. `hotel_id` has composite FKs to `bookings(id, hotel_id)` and `room_types(id, hotel_id)`, so every line is at the booking's hotel. Snapshots `nightly_rate`. |
 | `Payment` | `payments` | `id` (`BigInteger`) | `booking`. `amount > 0`, `currency` defaults to `'INR'`. `status`: `'initiated'`, `'successful'`, `'failed'`, `'refunded'`. |
 | `Review` | `reviews` | `id` (`BigInteger`) | `booking` (`UNIQUE`), `user`, `hotel`. `rating` must be between `1` and `5`. |
 
