@@ -144,23 +144,35 @@ ORDER BY average_rating DESC, total_reviews DESC;
 -- Query 6 (Owner: M1): Customers with multiple bookings and lifetime value metrics
 -- Concepts: CTEs, subquery/window aggregation, HAVING, multi-table joins
 -- -----------------------------------------------------------------------------
-WITH customer_booking_metrics AS (
+-- Bookings are reduced to one row per (booking, hotel) before aggregating.
+-- Joining booking_rooms directly would repeat a booking once per room, so
+-- SUM(nights) would count a 2-room, 3-night stay as 6 nights.
+WITH booking_hotels AS (
+    SELECT DISTINCT br.booking_id, rt.hotel_id
+    FROM booking_rooms br
+    JOIN room_types rt ON rt.id = br.room_type_id
+),
+customer_booking_metrics AS (
     SELECT
         u.id AS user_id,
         u.full_name,
         u.email,
-        COUNT(DISTINCT b.id) AS total_bookings,
-        COUNT(DISTINCT b.id) FILTER (WHERE b.status IN ('confirmed', 'completed')) AS active_or_completed_bookings,
-        COUNT(DISTINCT rt.hotel_id) AS distinct_hotels_visited,
+        COUNT(b.id) AS total_bookings,
+        COUNT(b.id) FILTER (WHERE b.status IN ('confirmed', 'completed')) AS active_or_completed_bookings,
         SUM(b.check_out - b.check_in) AS total_nights_booked,
         MIN(b.check_in) AS first_check_in,
         MAX(b.check_in) AS latest_check_in
     FROM users u
     JOIN bookings b ON b.user_id = u.id
-    JOIN booking_rooms br ON br.booking_id = b.id
-    JOIN room_types rt ON rt.id = br.room_type_id
+    WHERE EXISTS (SELECT 1 FROM booking_hotels bh WHERE bh.booking_id = b.id)
     GROUP BY u.id, u.full_name, u.email
-    HAVING COUNT(DISTINCT b.id) > 1
+    HAVING COUNT(b.id) > 1
+),
+customer_hotels AS (
+    SELECT b.user_id, COUNT(DISTINCT bh.hotel_id) AS distinct_hotels_visited
+    FROM bookings b
+    JOIN booking_hotels bh ON bh.booking_id = b.id
+    GROUP BY b.user_id
 ),
 customer_spend AS (
     SELECT
@@ -176,11 +188,12 @@ SELECT
     cbm.email,
     cbm.total_bookings,
     cbm.active_or_completed_bookings,
-    cbm.distinct_hotels_visited,
+    ch.distinct_hotels_visited,
     cbm.total_nights_booked,
     cs.lifetime_spend,
     cbm.first_check_in,
     cbm.latest_check_in
 FROM customer_booking_metrics cbm
+JOIN customer_hotels ch ON ch.user_id = cbm.user_id
 JOIN customer_spend cs ON cs.user_id = cbm.user_id
 ORDER BY cbm.total_bookings DESC, cs.lifetime_spend DESC;
