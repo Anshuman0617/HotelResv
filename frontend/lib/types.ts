@@ -37,6 +37,8 @@ export interface Hotel {
   status: HotelStatus;
   registered_by: number;
   created_at: string;
+  /** Only on search results: 0-1, 1 is an exact word match. */
+  search_score?: number;
 }
 
 /** hotel_members (composite PK: hotel_id + user_id) */

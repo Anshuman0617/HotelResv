@@ -54,29 +54,34 @@ function HotelsContent() {
   const [error, setError] = useState<string | null>(null);
 
   // Read current query params
-  const cityParam = searchParams.get("city") ?? "";
+  // "city" is still read so older links keep working.
+  const queryParam = (searchParams.get("q") ?? searchParams.get("city") ?? "").trim();
   const checkInParam = searchParams.get("check_in") || todayStr();
   const checkOutParam = searchParams.get("check_out") || tomorrowStr();
   const guestsParam = Math.max(1, parseInt(searchParams.get("guests") || "1", 10));
 
-  const [cityInput, setCityInput] = useState(cityParam);
+  const [queryInput, setQueryInput] = useState(queryParam);
   const [checkInInput, setCheckInInput] = useState(checkInParam);
   const [checkOutInput, setCheckOutInput] = useState(checkOutParam);
   const [guestsInput, setGuestsInput] = useState(guestsParam);
 
   const performSearch = useCallback(
-    async (city: string, checkIn: string, checkOut: string, guests: number) => {
+    async (query: string, checkIn: string, checkOut: string, guests: number) => {
       setLoading(true);
       setError(null);
 
       try {
-        // 1. Fetch matching hotels
-        const hotelsPath = city
-          ? `/api/hotels?city=${encodeURIComponent(city)}&limit=100`
-          : "/api/hotels?limit=100";
-        const hotelsData = await apiFetch<Hotel[]>(hotelsPath);
+        // 1. Fetch matching hotels. With a query the backend runs a fuzzy,
+        //    ranked search, so the list arrives best match first.
+        const hotelsQuery = new URLSearchParams({ limit: "100" });
+        if (query) hotelsQuery.set("search", query);
+        const hotelsData = await apiFetch<Hotel[]>(`/api/hotels?${hotelsQuery.toString()}`);
+        if (hotelsData.length === 0) {
+          setHotelCards([]);
+          return;
+        }
 
-        // 2. Fetch Query 1 availability for dates
+        // 2. Fetch Query 1 availability for dates, only for the hotels found
         let availData: AvailableRoomTypeResult[] = [];
         try {
           const availQuery = new URLSearchParams({
@@ -84,7 +89,9 @@ function HotelsContent() {
             check_out: checkOut,
             guests: String(guests),
           });
-          if (city) availQuery.set("city", city);
+          if (query) {
+            for (const hotel of hotelsData) availQuery.append("hotel_ids", String(hotel.id));
+          }
           availData = await apiFetch<AvailableRoomTypeResult[]>(
             `/api/hotels/availability?${availQuery.toString()}`
           );
@@ -113,10 +120,11 @@ function HotelsContent() {
           };
         });
 
-        // Sort available hotels first, then by lowest price
+        // Available hotels first. Within that, a search keeps the backend's
+        // relevance order (sort is stable); browsing sorts by lowest price.
         mapped.sort((a, b) => {
           if (a.isFull !== b.isFull) return a.isFull ? 1 : -1;
-          if (a.startingPrice && b.startingPrice) return a.startingPrice - b.startingPrice;
+          if (!query && a.startingPrice && b.startingPrice) return a.startingPrice - b.startingPrice;
           return 0;
         });
 
@@ -131,13 +139,13 @@ function HotelsContent() {
   );
 
   useEffect(() => {
-    performSearch(cityParam, checkInParam, checkOutParam, guestsParam);
-  }, [cityParam, checkInParam, checkOutParam, guestsParam, performSearch]);
+    performSearch(queryParam, checkInParam, checkOutParam, guestsParam);
+  }, [queryParam, checkInParam, checkOutParam, guestsParam, performSearch]);
 
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (cityInput.trim()) params.set("city", cityInput.trim());
+    if (queryInput.trim()) params.set("q", queryInput.trim());
     if (checkInInput) params.set("check_in", checkInInput);
     if (checkOutInput) params.set("check_out", checkOutInput);
     if (guestsInput > 1) params.set("guests", String(guestsInput));
@@ -147,6 +155,11 @@ function HotelsContent() {
 
   const availableCount = hotelCards.filter((h) => !h.isFull).length;
   const fullCount = hotelCards.filter((h) => h.isFull).length;
+  // Typos and near-misses score below 1; say so instead of implying an exact hit.
+  const onlyCloseMatches =
+    queryParam !== "" &&
+    hotelCards.length > 0 &&
+    hotelCards.every((h) => (h.hotel.search_score ?? 1) < 1);
 
   return (
     <div>
@@ -158,12 +171,12 @@ function HotelsContent() {
           className="grid w-full gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
         >
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">Destination</span>
+            <span className="font-medium text-slate-700">Where to?</span>
             <input
-              type="text"
-              value={cityInput}
-              onChange={(e) => setCityInput(e.target.value)}
-              placeholder="e.g. Mumbai, Chennai"
+              type="search"
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
+              placeholder="City, hotel or area"
               className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-indigo-600"
             />
           </label>
@@ -207,12 +220,18 @@ function HotelsContent() {
         </form>
       </div>
 
+      {!loading && !error && onlyCloseMatches && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          No exact match for <span className="font-semibold">&ldquo;{queryParam}&rdquo;</span>. Showing the closest matches.
+        </div>
+      )}
+
       {/* Results summary filter bar */}
       {!loading && !error && hotelCards.length > 0 && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4 text-sm text-slate-600">
           <div>
             Showing <span className="font-semibold text-slate-900">{hotelCards.length}</span> hotel{hotelCards.length > 1 ? "s" : ""}
-            {cityParam ? <> in <span className="font-semibold text-slate-900">{cityParam}</span></> : ""}
+            {queryParam ? <> matching <span className="font-semibold text-slate-900">&ldquo;{queryParam}&rdquo;</span></> : ""}
             {" for "}
             <span className="font-semibold text-slate-900">{checkInParam}</span> to <span className="font-semibold text-slate-900">{checkOutParam}</span>
           </div>
@@ -242,7 +261,7 @@ function HotelsContent() {
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
           <p className="text-rose-700">{error}</p>
           <button
-            onClick={() => performSearch(cityParam, checkInParam, checkOutParam, guestsParam)}
+            onClick={() => performSearch(queryParam, checkInParam, checkOutParam, guestsParam)}
             className="mt-3 rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
           >
             Retry
@@ -252,11 +271,11 @@ function HotelsContent() {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-12 text-center">
           <p className="text-lg font-medium text-slate-600">No hotels found</p>
           <p className="mt-1 text-sm text-slate-500">
-            {cityParam
-              ? `No registered properties match "${cityParam}". Try searching for another city.`
+            {queryParam
+              ? `Nothing matches "${queryParam}", even allowing for typos. Try a city, state or hotel name.`
               : "No hotels currently registered in the system."}
           </p>
-          {cityParam && (
+          {queryParam && (
             <button
               onClick={() => router.push("/hotels")}
               className="mt-4 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
