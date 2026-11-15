@@ -38,6 +38,15 @@ Public endpoints allow customer hotel browsing and availability search; manageme
 - `POST /api/hotels/{id}/rooms` (201): Add a physical room with `room_type_id`, `room_number`, `floor`, and `status`. Requires `owner` or `manager`.
 - `PATCH /api/hotels/{id}/rooms/{room_id}/status`: Change physical room status (`active`, `maintenance`, `inactive`). Requires `owner`, `manager`, or `staff`.
 
+### Hotel team (`hotel_members`)
+
+The hotel's creator is its `owner`. Only the owner can grant, change or remove `manager` and `staff` roles; the owner row itself can't be changed or removed.
+
+- `GET /api/hotels/{id}/members`: Everyone with access, owner first: `user_id`, `full_name`, `email`, `role`, `joined_at`. Requires `owner`, `manager`, or `staff`.
+- `POST /api/hotels/{id}/members` (201) with `{"email": "...", "role": "manager" | "staff"}`: Give an existing account a role (email match ignores case). Requires `owner`. 404 if no account uses the email, 409 if they are already a member, 422 for any other role (including `owner`).
+- `PATCH /api/hotels/{id}/members/{user_id}` with `{"role": "manager" | "staff"}`: Change a member's role. Requires `owner`. 404 if the user isn't a member of this hotel, 409 for the owner row.
+- `DELETE /api/hotels/{id}/members/{user_id}`: Remove a member; they lose access immediately. Requires `owner`. Same 404/409 rules as `PATCH`.
+
 ## Create booking
 
 `POST /api/bookings` (201)

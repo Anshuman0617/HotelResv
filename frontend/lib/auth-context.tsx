@@ -62,7 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setUser(me);
       })
       .catch((err: unknown) => {
-        if (err instanceof ApiError && err.status === 401) clearToken();
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          clearToken();
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

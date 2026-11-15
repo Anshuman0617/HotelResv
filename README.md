@@ -73,7 +73,7 @@ The proposed relational schema consists of ten tables.
 ### Key Relationships
 
 - A user can register multiple hotels.
-- Users and hotels have a many-to-many membership relationship through `hotel_members`.
+- Users and hotels have a many-to-many membership relationship through `hotel_members`. The user who registers a hotel is its owner, and the owner grants, changes or removes `manager` and `staff` roles (by the member's email) from the manager Team page.
 - Each hotel can offer multiple room types and contain multiple physical rooms.
 - A user can create multiple bookings.
 - Each booking is at exactly one hotel, and every room in it must belong to that hotel.
