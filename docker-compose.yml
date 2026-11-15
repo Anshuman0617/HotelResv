@@ -32,6 +32,12 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       SEED_ON_START: ${SEED_ON_START:-true}
+      # uvicorn reads WEB_CONCURRENCY as its worker count. Each worker has its
+      # own pool, so 4 x (5 + 5) = 40 connections, under Postgres's 100.
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-4}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-30}
     depends_on:
       db:
         condition: service_healthy
