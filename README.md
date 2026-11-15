@@ -93,7 +93,7 @@ The database design incorporates:
 
 ### Normalization
 
-The schema is normalized table by table against the functional dependencies (FDs) below. Six of the nine tables are in **BCNF**. `rooms` is in **3NF**, and `booking_rooms` is in **2NF** because of deliberate, constraint-guarded redundancy (see *Controlled denormalization*).
+The schema is normalized table by table against the functional dependencies (FDs) below. Seven of the nine tables are in **BCNF**. `rooms` is in **3NF**, and `booking_rooms` is in **2NF** because of deliberate, constraint-guarded redundancy (see *Controlled denormalization*).
 
 #### Normal forms used
 
