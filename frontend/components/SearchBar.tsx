@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export interface SearchBarProps {
   defaultQuery?: string;
   defaultCheckIn?: string;
@@ -25,10 +27,22 @@ const inputClass =
 
 export default function SearchBar({
   defaultQuery = "",
-  defaultCheckIn = todayStr(),
-  defaultCheckOut = tomorrowStr(),
+  defaultCheckIn = "",
+  defaultCheckOut = "",
   defaultGuests = 1,
 }: SearchBarProps) {
+  const [checkIn, setCheckIn] = useState(defaultCheckIn);
+  const [checkOut, setCheckOut] = useState(defaultCheckOut);
+  const [minDate, setMinDate] = useState("");
+
+  useEffect(() => {
+    const today = todayStr();
+    const tomorrow = tomorrowStr();
+    setMinDate(today);
+    if (!defaultCheckIn) setCheckIn(today);
+    if (!defaultCheckOut) setCheckOut(tomorrow);
+  }, [defaultCheckIn, defaultCheckOut]);
+
   return (
     <form
       action="/hotels"
@@ -50,8 +64,9 @@ export default function SearchBar({
         <input
           name="check_in"
           type="date"
-          defaultValue={defaultCheckIn}
-          min={todayStr()}
+          value={checkIn}
+          onChange={(e) => setCheckIn(e.target.value)}
+          min={minDate || undefined}
           className={inputClass}
         />
       </label>
@@ -60,8 +75,9 @@ export default function SearchBar({
         <input
           name="check_out"
           type="date"
-          defaultValue={defaultCheckOut}
-          min={todayStr()}
+          value={checkOut}
+          onChange={(e) => setCheckOut(e.target.value)}
+          min={minDate || undefined}
           className={inputClass}
         />
       </label>
@@ -78,7 +94,7 @@ export default function SearchBar({
       </label>
       <button
         type="submit"
-        className="m-1 rounded-xl bg-clay-600 px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-clay-700 sm:col-span-2 lg:col-span-1"
+        className="m-1 rounded-xl bg-clay-600 px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-clay-700 sm:col-span-2 lg:col-span-1 cursor-pointer"
       >
         Search stays
       </button>

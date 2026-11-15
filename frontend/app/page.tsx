@@ -50,9 +50,7 @@ export default function Home() {
               availability and honest reviews.
             </p>
           </div>
-          <Suspense fallback={<div className="h-20 w-full animate-pulse rounded-2xl bg-white/70" />}>
-            <SearchBar />
-          </Suspense>
+          <SearchBar />
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="mr-1 text-sand-600">Popular:</span>
             {DESTINATIONS.map((city) => (
