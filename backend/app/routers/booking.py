@@ -55,11 +55,6 @@ async def complete(booking_id: int, db: AsyncSession = Depends(get_db), user: Us
     return response(await complete_booking(db, booking_id, user.id), "Stay completed")
 
 
-@router.post("/{booking_id}/complete")
-def complete(booking_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return response(complete_booking(db, booking_id, user.id), "Stay completed")
-
-
 @router.post("/{booking_id}/reviews", status_code=status.HTTP_201_CREATED)
 async def review(booking_id: int, request: ReviewRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     return response(await create_review(db, booking_id, user.id, request), "Review created")

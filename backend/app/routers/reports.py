@@ -73,12 +73,6 @@ async def room_history(hotel_id: int, room_id: int, db: AsyncSession = Depends(g
     return response(data, "Room history retrieved")
 
 
-@router.get("/hotels/{hotel_id}/reports/payments", dependencies=[Depends(report_access)])
-def hotel_payments(hotel_id: int, db: Session = Depends(get_db)):
-    return response(report_service.hotel_payments(db, hotel_id), "Hotel payments retrieved")
-
-
-
 @router.get("/reports/top-rated-hotels")
 async def top_rated_hotels(db: AsyncSession = Depends(get_db), _user: User = Depends(get_current_user)):
     return response(await report_service.top_rated_hotels(db), "Top-rated hotels retrieved")
