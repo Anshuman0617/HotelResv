@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/manager/Sidebar";
+import { LoadingNotice } from "@/components/manager/LoadState";
+import { useAuth } from "@/lib/auth-context";
 import {
   ManagerHotelProvider,
   useManagerHotel,
@@ -40,7 +43,7 @@ function ManagerFrame({ children }: { children: ReactNode }) {
             >
               {hotels.map((hotel) => (
                 <option key={hotel.id} value={hotel.id}>
-                  {hotel.name} · {hotel.city}
+                  {hotel.name} · {hotel.city} ({hotel.role})
                 </option>
               ))}
             </select>
@@ -53,8 +56,26 @@ function ManagerFrame({ children }: { children: ReactNode }) {
 }
 
 export default function ManagerLayout({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, user, router, pathname]);
+
+  if (!user) {
+    return (
+      <main className="mx-auto w-full max-w-xl px-4 py-16">
+        <LoadingNotice label={loading ? "Checking your session…" : "Redirecting to sign in…"} />
+      </main>
+    );
+  }
+
   return (
-    <ManagerHotelProvider>
+    <ManagerHotelProvider key={user.id}>
       <ManagerFrame>{children}</ManagerFrame>
     </ManagerHotelProvider>
   );

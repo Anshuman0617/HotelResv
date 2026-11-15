@@ -244,3 +244,13 @@ def list_hotel_reviews(db: Session, hotel_id: int) -> dict:
         "reviews": items,
     }
 
+
+def list_member_hotels(db: Session, user_id: int) -> list[tuple[Hotel, str]]:
+    """Hotels the user belongs to through hotel_members, with their role."""
+    rows = db.execute(
+        select(Hotel, HotelMember.role)
+        .join(HotelMember, HotelMember.hotel_id == Hotel.id)
+        .where(HotelMember.user_id == user_id)
+        .order_by(Hotel.name, Hotel.id)
+    ).all()
+    return [(hotel, role) for hotel, role in rows]

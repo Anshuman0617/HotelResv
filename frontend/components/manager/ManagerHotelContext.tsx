@@ -2,26 +2,31 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { apiFetch } from "@/lib/api";
-import {
-  managerHotels,
-  managerRoomTypes,
-  managerRooms,
-  type ManagerHotel,
-  type PhysicalRoom,
-  type PhysicalRoomInput,
-  type RoomStatus,
-  type RoomType,
-  type RoomTypeInput,
-} from "@/lib/manager/mock";
+import { describeApiError, useApiData } from "@/lib/manager/useApiData";
+import type {
+  ManagerHotel,
+  PhysicalRoom,
+  PhysicalRoomInput,
+  RoomStatus,
+  RoomType,
+  RoomTypeInput,
+} from "@/lib/manager/types";
+import { ErrorNotice, LoadingNotice } from "@/components/manager/LoadState";
 
+type HotelUpdates = Partial<
+  Omit<ManagerHotel, "id" | "registered_by" | "created_at" | "role">
+>;
+
+/**
+ * Every action saves through the API and then reloads the affected data.
+ * Actions reject with the API error, so callers can show it to the manager.
+ */
 type ManagerHotelContextValue = {
   hotels: ManagerHotel[];
   selectedHotel: ManagerHotel;
@@ -29,223 +34,136 @@ type ManagerHotelContextValue = {
   roomTypes: RoomType[];
   rooms: PhysicalRoom[];
   loading: boolean;
-  refreshHotelData: () => Promise<void>;
-  updateHotel: (
-    hotelId: number,
-    updates: Partial<Omit<ManagerHotel, "id" | "registered_by" | "created_at">>,
-  ) => void;
-  addRoomType: (hotelId: number, input: RoomTypeInput) => void;
-  updateRoomType: (roomTypeId: number, input: RoomTypeInput) => void;
-  removeRoomType: (roomTypeId: number) => boolean;
-  addRoom: (hotelId: number, input: PhysicalRoomInput) => void;
-  updateRoom: (roomId: number, input: PhysicalRoomInput) => void;
-  updateRoomStatus: (roomId: number, status: RoomStatus) => void;
+  /** Set when room types or rooms for the selected hotel failed to load. */
+  inventoryError: string | null;
+  updateHotel: (hotelId: number, updates: HotelUpdates) => Promise<void>;
+  addRoomType: (hotelId: number, input: RoomTypeInput) => Promise<void>;
+  updateRoomType: (roomTypeId: number, input: RoomTypeInput) => Promise<void>;
+  addRoom: (hotelId: number, input: PhysicalRoomInput) => Promise<void>;
+  updateRoomStatus: (roomId: number, status: RoomStatus) => Promise<void>;
 };
 
 const ManagerHotelContext = createContext<ManagerHotelContextValue | null>(
   null,
 );
 
+const jsonBody = (method: string, body: unknown): RequestInit => ({
+  method,
+  body: JSON.stringify(body),
+});
+
 export function ManagerHotelProvider({ children }: { children: ReactNode }) {
-  const [selectedHotelId, setSelectedHotelId] = useState(managerHotels[0].id);
-  const [hotelsList, setHotelsList] = useState<ManagerHotel[]>(managerHotels);
-  const [roomTypes, setRoomTypes] = useState<RoomType[]>(managerRoomTypes);
-  const [rooms, setRooms] = useState<PhysicalRoom[]>(managerRooms);
-  const [loading, setLoading] = useState(false);
+  const hotelsRequest = useApiData<ManagerHotel[]>("/api/manager/hotels");
+  const hotels = useMemo(() => hotelsRequest.data ?? [], [hotelsRequest.data]);
+  const [chosenHotelId, setSelectedHotelId] = useState<number | null>(null);
+  const selectedHotel =
+    hotels.find((hotel) => hotel.id === chosenHotelId) ?? hotels[0] ?? null;
+  const hotelId = selectedHotel?.id ?? null;
 
-  // 1. Fetch hotels from backend on mount
-  useEffect(() => {
-    apiFetch<ManagerHotel[]>("/api/hotels?limit=50")
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setHotelsList(data);
-          setSelectedHotelId((prev) =>
-            data.some((h) => h.id === prev) ? prev : data[0].id
-          );
-        }
-      })
-      .catch(() => {
-        // Fallback to local default hotels if API is offline
-      });
-  }, []);
+  const roomTypesRequest = useApiData<RoomType[]>(
+    hotelId === null ? null : `/api/hotels/${hotelId}/room-types`,
+  );
+  const roomsRequest = useApiData<PhysicalRoom[]>(
+    hotelId === null ? null : `/api/hotels/${hotelId}/rooms`,
+  );
 
-  // 2. Fetch room types and rooms when selectedHotelId changes
-  const fetchRoomData = useCallback(async (hotelId: number) => {
-    if (!hotelId) return;
-    setLoading(true);
+  const reloadHotels = hotelsRequest.reload;
+  const reloadRoomTypes = roomTypesRequest.reload;
+  const reloadRooms = roomsRequest.reload;
+  const inventoryFailure = roomTypesRequest.error ?? roomsRequest.error;
 
-    try {
-      const [rtData, rData] = await Promise.all([
-        apiFetch<RoomType[]>(`/api/hotels/${hotelId}/room-types`).catch(() => null),
-        apiFetch<PhysicalRoom[]>(`/api/hotels/${hotelId}/rooms`).catch(() => null),
-      ]);
-
-      if (rtData && Array.isArray(rtData)) {
-        setRoomTypes(rtData);
-      } else {
-        // Filter fallback mock room types
-        setRoomTypes(managerRoomTypes.filter((rt) => rt.hotel_id === hotelId));
-      }
-
-      if (rData && Array.isArray(rData)) {
-        setRooms(rData);
-      } else {
-        // Filter fallback mock rooms
-        setRooms(managerRooms.filter((r) => r.hotel_id === hotelId));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRoomData(selectedHotelId);
-  }, [selectedHotelId, fetchRoomData]);
-
-  const value = useMemo<ManagerHotelContextValue>(() => {
-    const selectedHotel =
-      hotelsList.find((hotel) => hotel.id === selectedHotelId) ??
-      hotelsList[0] ??
-      managerHotels[0];
-
+  const value = useMemo<ManagerHotelContextValue | null>(() => {
+    if (!selectedHotel) return null;
     return {
-      hotels: hotelsList,
+      hotels,
       selectedHotel,
       setSelectedHotelId,
-      roomTypes,
-      rooms,
-      loading,
-      refreshHotelData: () => fetchRoomData(selectedHotelId),
-      updateHotel: async (hotelId, updates) => {
-        // Optimistic local update
-        setHotelsList((currentHotels) =>
-          currentHotels.map((hotel) =>
-            hotel.id === hotelId ? { ...hotel, ...updates } : hotel,
-          ),
-        );
-        // Persist to backend
-        try {
-          await apiFetch(`/api/hotels/${hotelId}`, {
-            method: "PUT",
-            body: JSON.stringify(updates),
-          });
-        } catch {
-          // Keep optimistic state
-        }
+      roomTypes: roomTypesRequest.data ?? [],
+      rooms: roomsRequest.data ?? [],
+      loading: roomTypesRequest.loading || roomsRequest.loading,
+      inventoryError: inventoryFailure ? describeApiError(inventoryFailure) : null,
+      updateHotel: async (id, updates) => {
+        await apiFetch(`/api/hotels/${id}`, jsonBody("PUT", updates));
+        reloadHotels();
       },
-      addRoomType: async (hotelId, input) => {
-        try {
-          const created = await apiFetch<RoomType>(`/api/hotels/${hotelId}/room-types`, {
-            method: "POST",
-            body: JSON.stringify(input),
-          });
-          setRoomTypes((prev) => [...prev, created]);
-        } catch {
-          // Fallback local addition
-          setRoomTypes((currentRoomTypes) => [
-            ...currentRoomTypes,
-            {
-              ...input,
-              id:
-                currentRoomTypes.reduce(
-                  (nextId, roomType) => Math.max(nextId, roomType.id),
-                  0,
-                ) + 1,
-              hotel_id: hotelId,
-              created_at: new Date().toISOString(),
-            },
-          ]);
-        }
+      addRoomType: async (id, input) => {
+        await apiFetch(`/api/hotels/${id}/room-types`, jsonBody("POST", input));
+        reloadRoomTypes();
       },
       updateRoomType: async (roomTypeId, input) => {
-        // Optimistic local update
-        setRoomTypes((currentRoomTypes) =>
-          currentRoomTypes.map((roomType) =>
-            roomType.id === roomTypeId ? { ...roomType, ...input } : roomType,
-          ),
+        await apiFetch(
+          `/api/hotels/${selectedHotel.id}/room-types/${roomTypeId}`,
+          jsonBody("PUT", input),
         );
-        // Persist to backend
-        try {
-          await apiFetch(`/api/hotels/${selectedHotelId}/room-types/${roomTypeId}`, {
-            method: "PUT",
-            body: JSON.stringify(input),
-          });
-        } catch {
-          // Keep optimistic state
-        }
+        reloadRoomTypes();
       },
-      removeRoomType: (roomTypeId) => {
-        if (rooms.some((room) => room.room_type_id === roomTypeId)) {
-          return false;
-        }
-        setRoomTypes((currentRoomTypes) =>
-          currentRoomTypes.filter((roomType) => roomType.id !== roomTypeId),
+      addRoom: async (id, input) => {
+        await apiFetch(`/api/hotels/${id}/rooms`, jsonBody("POST", input));
+        reloadRooms();
+      },
+      updateRoomStatus: async (roomId, status) => {
+        await apiFetch(
+          `/api/hotels/${selectedHotel.id}/rooms/${roomId}/status`,
+          jsonBody("PATCH", { status }),
         );
-        return true;
-      },
-      addRoom: async (hotelId, input) => {
-        try {
-          const created = await apiFetch<PhysicalRoom>(`/api/hotels/${hotelId}/rooms`, {
-            method: "POST",
-            body: JSON.stringify(input),
-          });
-          setRooms((prev) => [...prev, created]);
-        } catch {
-          // Fallback local addition
-          setRooms((currentRooms) => [
-            ...currentRooms,
-            {
-              ...input,
-              id:
-                currentRooms.reduce(
-                  (nextId, room) => Math.max(nextId, room.id),
-                  0,
-                ) + 1,
-              hotel_id: hotelId,
-            },
-          ]);
-        }
-      },
-      updateRoom: async (roomId, input) => {
-        setRooms((currentRooms) =>
-          currentRooms.map((room) =>
-            room.id === roomId
-              ? { ...room, ...input, hotel_id: room.hotel_id }
-              : room,
-          ),
-        );
-        try {
-          await apiFetch(`/api/hotels/${selectedHotelId}/rooms/${roomId}/status`, {
-            method: "PATCH",
-            body: JSON.stringify({ status: input.status }),
-          });
-        } catch {
-          // Keep optimistic state
-        }
-      },
-      updateRoomStatus: async (roomId, status: RoomStatus) => {
-        setRooms((currentRooms) =>
-          currentRooms.map((room) =>
-            room.id === roomId ? { ...room, status } : room,
-          ),
-        );
-        try {
-          await apiFetch(`/api/hotels/${selectedHotelId}/rooms/${roomId}/status`, {
-            method: "PATCH",
-            body: JSON.stringify({ status }),
-          });
-        } catch {
-          // Keep optimistic state
-        }
+        reloadRooms();
       },
     };
-  }, [hotelsList, roomTypes, rooms, selectedHotelId, loading, fetchRoomData]);
+  }, [
+    hotels,
+    selectedHotel,
+    roomTypesRequest.data,
+    roomTypesRequest.loading,
+    roomsRequest.data,
+    roomsRequest.loading,
+    inventoryFailure,
+    reloadHotels,
+    reloadRoomTypes,
+    reloadRooms,
+  ]);
+
+  if (hotelsRequest.error) {
+    return (
+      <ManagerGate>
+        <ErrorNotice
+          message={describeApiError(hotelsRequest.error)}
+          onRetry={reloadHotels}
+        />
+      </ManagerGate>
+    );
+  }
+  if (hotelsRequest.loading && !hotelsRequest.data) {
+    return (
+      <ManagerGate>
+        <LoadingNotice label="Loading your hotels…" />
+      </ManagerGate>
+    );
+  }
+  if (!value) {
+    return (
+      <ManagerGate>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-slate-900">
+            No hotels to manage
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Your account isn&apos;t an owner, manager or staff member of any
+            hotel. Ask a hotel owner to add you.
+          </p>
+        </div>
+      </ManagerGate>
+    );
+  }
 
   return (
     <ManagerHotelContext.Provider value={value}>
       {children}
     </ManagerHotelContext.Provider>
   );
+}
+
+function ManagerGate({ children }: { children: ReactNode }) {
+  return <main className="mx-auto w-full max-w-xl px-4 py-16">{children}</main>;
 }
 
 export function useManagerHotel() {

@@ -3,11 +3,13 @@
 import { useState, type FormEvent } from "react";
 import ManagerModal from "@/components/manager/ManagerModal";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError } from "@/lib/manager/useApiData";
 import {
   hotelStatuses,
   type HotelStatus,
   type ManagerHotel,
-} from "@/lib/manager/mock";
+} from "@/lib/manager/types";
 
 const statusStyles: Record<HotelStatus, string> = {
   pending: "bg-amber-50 text-amber-700",
@@ -27,13 +29,15 @@ export default function ManagerHotelsPage() {
   const { selectedHotel, updateHotel } = useManagerHotel();
   const [editingHotel, setEditingHotel] = useState<ManagerHotel | null>(null);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [statusError, setStatusError] = useState("");
 
   function openEditor() {
     setFormError("");
     setEditingHotel(selectedHotel);
   }
 
-  function saveProfile(event: FormEvent<HTMLFormElement>) {
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingHotel) return;
 
@@ -48,18 +52,34 @@ export default function ManagerHotelsPage() {
       return;
     }
 
-    updateHotel(editingHotel.id, {
-      name,
-      description: nullableValue(String(formData.get("description"))),
-      address_line: addressLine,
-      city,
-      state: nullableValue(String(formData.get("state"))),
-      country,
-      postal_code: nullableValue(String(formData.get("postal_code"))),
-      timezone,
-    });
-    setFormError("");
-    setEditingHotel(null);
+    setSaving(true);
+    try {
+      await updateHotel(editingHotel.id, {
+        name,
+        description: nullableValue(String(formData.get("description"))),
+        address_line: addressLine,
+        city,
+        state: nullableValue(String(formData.get("state"))),
+        country,
+        postal_code: nullableValue(String(formData.get("postal_code"))),
+        timezone,
+      });
+      setFormError("");
+      setEditingHotel(null);
+    } catch (error) {
+      setFormError(describeApiError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeStatus(status: HotelStatus) {
+    setStatusError("");
+    try {
+      await updateHotel(selectedHotel.id, { status });
+    } catch (error) {
+      setStatusError(describeApiError(error));
+    }
   }
 
   const address = [
@@ -92,6 +112,8 @@ export default function ManagerHotelsPage() {
           Edit profile
         </button>
       </header>
+
+      {statusError ? <ErrorNotice message={statusError} /> : null}
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
@@ -131,7 +153,7 @@ export default function ManagerHotelsPage() {
                 const status = hotelStatuses.find(
                   (value) => value === event.target.value,
                 );
-                if (status) updateHotel(selectedHotel.id, { status });
+                if (status) void changeStatus(status);
               }}
               className={inputClass}
             >
@@ -249,9 +271,10 @@ export default function ManagerHotelsPage() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                disabled={saving}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
               >
-                Save changes
+                {saving ? "Saving…" : "Save changes"}
               </button>
             </div>
           </form>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useManagerHotel } from "@/components/manager/ManagerHotelContext";
-import { apiFetch } from "@/lib/api";
+import { ErrorNotice } from "@/components/manager/LoadState";
+import { describeApiError, useApiData } from "@/lib/manager/useApiData";
 import StatCard from "@/components/manager/StatCard";
 
 interface ReviewItem {
@@ -35,60 +36,14 @@ function formatDate(dateStr: string | null) {
 
 export default function ManagerReviewsPage() {
   const { selectedHotel } = useManagerHotel();
-  const [reviewsData, setReviewsData] = useState<HotelReviewsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const request = useApiData<HotelReviewsData>(
+    `/api/hotels/${selectedHotel.id}/reviews`,
+  );
+  const reviewsData = request.data;
+  const loading = request.loading && !request.data;
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!selectedHotel?.id) return;
-    setLoading(true);
-
-    apiFetch<HotelReviewsData>(`/api/hotels/${selectedHotel.id}/reviews`)
-      .then((data) => {
-        setReviewsData(data);
-      })
-      .catch(() => {
-        // Fallback mock reviews if API offline
-        setReviewsData({
-          hotel_id: selectedHotel.id,
-          total_reviews: 4,
-          average_rating: 4.75,
-          reviews: [
-            {
-              id: 1,
-              rating: 5,
-              comment: "Exceptional hospitality! The staff went above and beyond to make our family stay memorable.",
-              created_at: "2026-11-01T10:15:00Z",
-              user_name: "Rahul Verma",
-            },
-            {
-              id: 2,
-              rating: 5,
-              comment: "Clean rooms, great breakfast spread, and seamless check-in experience. Highly recommended.",
-              created_at: "2026-10-25T14:30:00Z",
-              user_name: "Pooja Desai",
-            },
-            {
-              id: 3,
-              rating: 4,
-              comment: "Very comfortable beds and great ocean view. Room service was slightly delayed during peak dinner hour.",
-              created_at: "2026-10-18T18:00:00Z",
-              user_name: "Amitabh Sen",
-            },
-            {
-              id: 4,
-              rating: 5,
-              comment: "Wonderful location close to the city center. Will definitely book again on my next business trip.",
-              created_at: "2026-10-12T08:45:00Z",
-              user_name: "Sneha Mukherjee",
-            },
-          ],
-        });
-      })
-      .finally(() => setLoading(false));
-  }, [selectedHotel?.id]);
-
-  const allReviews = reviewsData?.reviews || [];
+  const allReviews = useMemo(() => reviewsData?.reviews ?? [], [reviewsData]);
 
   const filteredReviews = useMemo(() => {
     if (ratingFilter === null) return allReviews;
@@ -122,6 +77,13 @@ export default function ManagerReviewsPage() {
           </p>
         </div>
       </header>
+
+      {request.error ? (
+        <ErrorNotice
+          message={describeApiError(request.error)}
+          onRetry={request.reload}
+        />
+      ) : null}
 
       {/* KPI Cards */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

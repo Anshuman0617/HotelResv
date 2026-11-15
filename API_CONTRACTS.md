@@ -67,6 +67,11 @@ Read-only reports that run the SQL from `database/queries.sql` and the
 `hotel_booking_summary` view (`database/views.sql`) against PostgreSQL.
 Responses use `{"success": true, "message": "...", "data": ...}`.
 
+`GET /api/manager/hotels` lists the hotels the signed-in user belongs to through
+`hotel_members`: each hotel's profile fields plus the user's `role` (`owner`,
+`manager` or `staff`). It returns an empty array for customers; no token gives
+401.
+
 Hotel reports need a Bearer token for an `owner` or `manager` of that hotel
 (`hotel_members`). Staff and non-members get 403; a missing or invalid token
 gets 401.
@@ -81,8 +86,9 @@ gets 401.
 | `GET /api/manager/hotels/{hotel_id}/reports/payments` | `payments` table | payments for this hotel's bookings with customer name, newest first |
 | `GET /api/manager/reports/top-rated-hotels` | Query 5 | hotels with at least 3 reviews and an average of 3.5 or more; any signed-in user |
 
-Field names match the frontend types in `frontend/lib/manager/mock.ts`
-(`MonthlyRevenueResult`, `PopularRoomTypeResult`, `HotelRatingResult`).
+Field names match the frontend types in `frontend/lib/manager/types.ts`
+(`BookingHistoryRow`, `MonthlyRevenueResult`, `PopularRoomTypeResult`,
+`HotelRatingResult`).
 
 ## Errors
 
