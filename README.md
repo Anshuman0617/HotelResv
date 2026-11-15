@@ -55,13 +55,14 @@ The application follows a three-tier architecture:
 
 ## 5. Database Design
 
-The proposed relational schema consists of nine tables.
+The proposed relational schema consists of ten tables.
 
 | Table | Purpose |
 |---|---|
 | `users` | Stores user account and authentication information. |
 | `hotels` | Stores hotel details, location, status, and registration information. |
 | `hotel_members` | Manages hotel membership and staff roles. |
+| `city_aliases` | Reference data mapping alternative city names (Bombay, Bangalore) to the official name, for search. |
 | `room_types` | Stores room categories, occupancy limits, and base prices. |
 | `rooms` | Maintains physical room details and availability status. |
 | `bookings` | Stores customer reservations, the hotel they are at, and stay dates. |
@@ -93,7 +94,7 @@ The database design incorporates:
 
 ### Normalization
 
-The schema is normalized table by table against the functional dependencies (FDs) below. Seven of the nine tables are in **BCNF**. `rooms` is in **3NF**, and `booking_rooms` is in **2NF** because of deliberate, constraint-guarded redundancy (see *Controlled denormalization*).
+The schema is normalized table by table against the functional dependencies (FDs) below. Eight of the ten tables are in **BCNF**. `rooms` is in **3NF**, and `booking_rooms` is in **2NF** because of deliberate, constraint-guarded redundancy (see *Controlled denormalization*).
 
 #### Normal forms used
 
@@ -114,6 +115,7 @@ The schema is normalized table by table against the functional dependencies (FDs
 | `bookings` | `id` | `id → all` | BCNF |
 | `booking_rooms` | `id` | `id → all`; `booking_id → hotel_id`; `room_type_id → hotel_id`; `room_id → room_type_id, hotel_id` | 2NF |
 | `payments` | `id` | `id → all` | BCNF |
+| `city_aliases` | `alias` | `alias → city` | BCNF |
 | `reviews` | `id`, `booking_id` | `id → all`; `booking_id → all` | BCNF |
 
 **1NF** holds for every table: no attribute stores a list, JSON or comma-separated values. Multi-valued facts live in their own relations: the rooms of a booking in `booking_rooms`, and a hotel's staff in `hotel_members`.
@@ -147,6 +149,7 @@ Normal forms are checked one relation at a time, so they do not detect a fact st
 
 - **`booking_rooms.nightly_rate`** is not determined by `room_types.base_price`. It is a snapshot of the price at booking time, and the two differ once a price changes; this preserves historical totals and revenue.
 - **`payments.amount`** is likewise the amount actually charged, not a value derived from the current rates.
+- **`hotels.search_text`** is derived from the name, city, state, country and description, but it is a `STORED` generated column: PostgreSQL recomputes it on every write and rejects direct updates, so it cannot become inconsistent. It exists to carry the trigram index used by fuzzy search.
 - **`hotels.registered_by`** and the owner row in `hotel_members` record different facts: who registered the hotel, and who currently has owner access. Ownership can change without rewriting history.
 
 ## 6. Proposed Application Workflows

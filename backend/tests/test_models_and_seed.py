@@ -80,6 +80,7 @@ def test_sqlalchemy_models_metadata() -> None:
         "users",
         "hotels",
         "hotel_members",
+        "city_aliases",
         "room_types",
         "rooms",
         "bookings",

@@ -43,18 +43,43 @@ async def list_hotels(
     city: str | None = Query(None, description="Filter by city name"),
     country: str | None = Query(None, description="Filter by country"),
     status: Literal["active"] = Query("active", description="Only active hotels are publicly listed"),
-    search: str | None = Query(None, description="Search name, city or description"),
+    search: str | None = Query(
+        None,
+        max_length=200,
+        description="Fuzzy search over name, city, state, country and description. "
+        "Tolerates typos and old city names; results are ranked best first.",
+    ),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Browse and search hotels."""
+    """Browse and search hotels.
+
+    With ``search``, each hotel also carries ``search_score`` (0-1, higher is a
+    closer match) and the list is in relevance order.
+    """
+    # A query with no usable words ("q", "!!") lists hotels as if empty.
+    if search and hotel_service.search_tokens(search):
+        ranked = await hotel_service.search_hotels(
+            db,
+            search,
+            city=city,
+            country=country,
+            status_filter=status,
+            limit=limit,
+            offset=offset,
+        )
+        data = [
+            {**HotelResponse.model_validate(h).model_dump(mode="json"), "search_score": score}
+            for h, score in ranked
+        ]
+        return api_response(data, "Hotels retrieved successfully")
+
     hotels = await hotel_service.list_hotels(
         db,
         city=city,
         country=country,
         status_filter=status,
-        query=search,
         limit=limit,
         offset=offset,
     )
@@ -69,12 +94,18 @@ async def search_global_availability(
     guests: int = Query(1, ge=1, description="Required guest capacity"),
     city: str | None = Query(None, description="Filter by city"),
     hotel_id: int | None = Query(None, description="Optional hotel ID filter"),
+    hotel_ids: list[int] | None = Query(
+        None,
+        max_length=100,
+        description="Only these hotels (repeat the parameter: hotel_ids=1&hotel_ids=2)",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Query 1: Search available hotels and room types for selected dates and guests."""
     results = await hotel_service.search_availability(
         db,
         hotel_id=hotel_id,
+        hotel_ids=hotel_ids,
         city=city,
         check_in=check_in,
         check_out=check_out,
