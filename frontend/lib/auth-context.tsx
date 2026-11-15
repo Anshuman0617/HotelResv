@@ -31,6 +31,11 @@ interface AuthContextValue {
   user: User | null;
   /** True until the stored token has been checked on first load. */
   loading: boolean;
+  /**
+   * True when the signed-in user is an owner, manager or staff member of at
+   * least one hotel, i.e. when the manager area has something for them.
+   */
+  managesHotels: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (input: RegisterInput) => Promise<User>;
   logout: () => void;
@@ -69,6 +74,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Which user the membership answer belongs to, so a stale answer from a
+  // previous session is never shown for the next one.
+  const [membership, setMembership] = useState<{ userId: number; managesHotels: boolean } | null>(null);
+  const userId = user?.id ?? null;
+
+  useEffect(() => {
+    if (userId === null) return;
+    let cancelled = false;
+    apiFetch<unknown[]>("/api/manager/hotels").then(
+      (hotels) => {
+        if (!cancelled) setMembership({ userId, managesHotels: hotels.length > 0 });
+      },
+      () => {
+        // Can't tell: hide the manager link rather than show a dead end.
+        if (!cancelled) setMembership({ userId, managesHotels: false });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const managesHotels =
+    userId !== null && membership?.userId === userId && membership.managesHotels;
+
   const startSession = useCallback((auth: AuthResponse) => {
     setToken(auth.access_token);
     setUser(auth.user);
@@ -103,8 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, managesHotels, login, register, logout }),
+    [user, loading, managesHotels, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
