@@ -1,3 +1,4 @@
+import bcrypt
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(
@@ -13,7 +14,7 @@ def _validate_bcrypt_password_length(password: str) -> None:
 
 def hash_password(password: str) -> str:
     _validate_bcrypt_password_length(password)
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(
@@ -22,6 +23,7 @@ def verify_password(
 ) -> bool:
     try:
         _validate_bcrypt_password_length(plain_password)
-    except ValueError:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
         return False
-    return pwd_context.verify(plain_password, hashed_password)
+
