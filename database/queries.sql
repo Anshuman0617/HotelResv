@@ -43,11 +43,9 @@ ORDER BY rt.base_price ASC;
 -- Concepts: 6-table JOIN / LEFT JOIN, aggregation, date arithmetic
 -- -----------------------------------------------------------------------------
 WITH room_totals AS (
-    SELECT br.booking_id, rt.hotel_id, COUNT(*) AS rooms_booked,
-           SUM(br.nightly_rate) AS nightly_total
-    FROM booking_rooms br
-    JOIN room_types rt ON rt.id = br.room_type_id
-    GROUP BY br.booking_id, rt.hotel_id
+    SELECT booking_id, COUNT(*) AS rooms_booked, SUM(nightly_rate) AS nightly_total
+    FROM booking_rooms
+    GROUP BY booking_id
 )
 SELECT b.id AS booking_id, u.full_name AS customer_name, u.email AS customer_email,
        h.name AS hotel_name, h.city AS hotel_city, b.check_in, b.check_out,
@@ -58,8 +56,8 @@ SELECT b.id AS booking_id, u.full_name AS customer_name, u.email AS customer_ema
        rv.rating AS review_rating
 FROM bookings b
 JOIN users u ON u.id = b.user_id
+JOIN hotels h ON h.id = b.hotel_id
 JOIN room_totals rooms ON rooms.booking_id = b.id
-JOIN hotels h ON h.id = rooms.hotel_id
 LEFT JOIN LATERAL (
     SELECT p.status FROM payments p WHERE p.booking_id = b.id
     ORDER BY p.created_at DESC, p.id DESC LIMIT 1
@@ -73,13 +71,6 @@ LIMIT 25;
 -- Query 3 (Owner: M6): Monthly revenue per hotel from successful payments
 -- Concepts: DATE_TRUNC, SUM, COUNT, GROUP BY, ORDER BY
 -- -----------------------------------------------------------------------------
-WITH booking_hotel AS (
-    SELECT DISTINCT
-        br.booking_id,
-        rt.hotel_id
-    FROM booking_rooms br
-    JOIN room_types rt ON rt.id = br.room_type_id
-)
 SELECT
     h.id AS hotel_id,
     h.name AS hotel_name,
@@ -88,8 +79,8 @@ SELECT
     COUNT(DISTINCT p.booking_id) AS paid_bookings_count,
     SUM(p.amount) AS monthly_revenue
 FROM payments p
-JOIN booking_hotel bh ON bh.booking_id = p.booking_id
-JOIN hotels h ON h.id = bh.hotel_id
+JOIN bookings b ON b.id = p.booking_id
+JOIN hotels h ON h.id = b.hotel_id
 WHERE p.status = 'successful'
   AND p.paid_at IS NOT NULL
 GROUP BY h.id, h.name, h.city, DATE_TRUNC('month', p.paid_at)
@@ -116,7 +107,7 @@ JOIN booking_rooms br ON br.room_type_id = rt.id
 JOIN bookings b ON b.id = br.booking_id
 WHERE b.status IN ('confirmed', 'completed')
 GROUP BY h.id, h.name, h.city, rt.id, rt.name, rt.base_price
-ORDER BY times_booked DESC, total_room_revenue DESC
+ORDER BY times_booked DESC, total_room_revenue DESC, rt.id
 LIMIT 15;
 
 
@@ -144,35 +135,24 @@ ORDER BY average_rating DESC, total_reviews DESC;
 -- Query 6 (Owner: M1): Customers with multiple bookings and lifetime value metrics
 -- Concepts: CTEs, subquery/window aggregation, HAVING, multi-table joins
 -- -----------------------------------------------------------------------------
--- Bookings are reduced to one row per (booking, hotel) before aggregating.
--- Joining booking_rooms directly would repeat a booking once per room, so
--- SUM(nights) would count a 2-room, 3-night stay as 6 nights.
-WITH booking_hotels AS (
-    SELECT DISTINCT br.booking_id, rt.hotel_id
-    FROM booking_rooms br
-    JOIN room_types rt ON rt.id = br.room_type_id
-),
-customer_booking_metrics AS (
+-- Aggregates bookings directly (one row per booking). Joining booking_rooms
+-- here would repeat a booking once per room, so SUM(nights) would count a
+-- 2-room, 3-night stay as 6 nights.
+WITH customer_booking_metrics AS (
     SELECT
         u.id AS user_id,
         u.full_name,
         u.email,
         COUNT(b.id) AS total_bookings,
         COUNT(b.id) FILTER (WHERE b.status IN ('confirmed', 'completed')) AS active_or_completed_bookings,
+        COUNT(DISTINCT b.hotel_id) AS distinct_hotels_visited,
         SUM(b.check_out - b.check_in) AS total_nights_booked,
         MIN(b.check_in) AS first_check_in,
         MAX(b.check_in) AS latest_check_in
     FROM users u
     JOIN bookings b ON b.user_id = u.id
-    WHERE EXISTS (SELECT 1 FROM booking_hotels bh WHERE bh.booking_id = b.id)
     GROUP BY u.id, u.full_name, u.email
     HAVING COUNT(b.id) > 1
-),
-customer_hotels AS (
-    SELECT b.user_id, COUNT(DISTINCT bh.hotel_id) AS distinct_hotels_visited
-    FROM bookings b
-    JOIN booking_hotels bh ON bh.booking_id = b.id
-    GROUP BY b.user_id
 ),
 customer_spend AS (
     SELECT
@@ -188,12 +168,11 @@ SELECT
     cbm.email,
     cbm.total_bookings,
     cbm.active_or_completed_bookings,
-    ch.distinct_hotels_visited,
+    cbm.distinct_hotels_visited,
     cbm.total_nights_booked,
     cs.lifetime_spend,
     cbm.first_check_in,
     cbm.latest_check_in
 FROM customer_booking_metrics cbm
-JOIN customer_hotels ch ON ch.user_id = cbm.user_id
 JOIN customer_spend cs ON cs.user_id = cbm.user_id
 ORDER BY cbm.total_bookings DESC, cs.lifetime_spend DESC;

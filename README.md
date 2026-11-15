@@ -55,16 +55,17 @@ The application follows a three-tier architecture:
 
 ## 5. Database Design
 
-The proposed relational schema consists of nine tables.
+The proposed relational schema consists of ten tables.
 
 | Table | Purpose |
 |---|---|
 | `users` | Stores user account and authentication information. |
 | `hotels` | Stores hotel details, location, status, and registration information. |
 | `hotel_members` | Manages hotel membership and staff roles. |
+| `city_aliases` | Reference data mapping alternative city names (Bombay, Bangalore) to the official name, for search. |
 | `room_types` | Stores room categories, occupancy limits, and base prices. |
 | `rooms` | Maintains physical room details and availability status. |
-| `bookings` | Stores customer reservations and stay dates. |
+| `bookings` | Stores customer reservations, the hotel they are at, and stay dates. |
 | `booking_rooms` | Records requested rooms, room assignments, and booked nightly rates. |
 | `payments` | Tracks payment attempts, transaction references, and payment status. |
 | `reviews` | Stores customer ratings and feedback for eligible bookings. |
@@ -75,6 +76,7 @@ The proposed relational schema consists of nine tables.
 - Users and hotels have a many-to-many membership relationship through `hotel_members`.
 - Each hotel can offer multiple room types and contain multiple physical rooms.
 - A user can create multiple bookings.
+- Each booking is at exactly one hotel, and every room in it must belong to that hotel.
 - A booking can contain multiple requested rooms and have multiple payment records.
 - A booking can have at most one review.
 - A requested room can be assigned to a physical room when allocation is performed.
@@ -92,9 +94,63 @@ The database design incorporates:
 
 ### Normalization
 
-The schema is designed to approximately satisfy **Third Normal Form (3NF)** by separating users, hotels, room types, physical rooms, bookings, payments, and reviews into distinct relations.
+The schema is normalized table by table against the functional dependencies (FDs) below. Eight of the ten tables are in **BCNF**. `rooms` is in **3NF**, and `booking_rooms` is in **2NF** because of deliberate, constraint-guarded redundancy (see *Controlled denormalization*).
 
-The `hotel_members` table resolves the many-to-many relationship between users and hotels, while `booking_rooms` allows a booking to include multiple requested rooms. The booked nightly rate is stored as a snapshot to preserve historical pricing when a room type's base price changes.
+#### Normal forms used
+
+- **1NF** – every attribute holds a single atomic value; no repeating groups.
+- **2NF** – 1NF, and no non-key attribute depends on only part of a composite key.
+- **3NF** – 2NF, and for every non-trivial FD `X → A`, either `X` is a superkey or `A` is a *prime* attribute (part of some candidate key).
+- **BCNF** – for every non-trivial FD `X → A`, `X` is a superkey.
+
+#### Functional dependencies and normal form per table
+
+| Table | Candidate keys | Non-trivial FDs | Highest NF |
+|---|---|---|---|
+| `users` | `id`, `email` | `id → all`; `email → all` | BCNF |
+| `hotels` | `id` | `id → all` | BCNF (see note on addresses) |
+| `hotel_members` | `(hotel_id, user_id)` | `(hotel_id, user_id) → role, joined_at` | BCNF |
+| `room_types` | `id`, `(hotel_id, name)` | `id → all`; `(hotel_id, name) → all` | BCNF |
+| `rooms` | `id`, `(hotel_id, room_number)` | `id → all`; `(hotel_id, room_number) → all`; `room_type_id → hotel_id` | 3NF |
+| `bookings` | `id` | `id → all` | BCNF |
+| `booking_rooms` | `id` | `id → all`; `booking_id → hotel_id`; `room_type_id → hotel_id`; `room_id → room_type_id, hotel_id` | 2NF |
+| `payments` | `id` | `id → all` | BCNF |
+| `city_aliases` | `alias` | `alias → city` | BCNF |
+| `reviews` | `id`, `booking_id` | `id → all`; `booking_id → all` | BCNF |
+
+**1NF** holds for every table: no attribute stores a list, JSON or comma-separated values. Multi-valued facts live in their own relations: the rooms of a booking in `booking_rooms`, and a hotel's staff in `hotel_members`.
+
+**2NF** holds for every table. The only composite primary key is `hotel_members(hotel_id, user_id)`, and `role` depends on the whole key, because a user can be the owner of one hotel and staff at another.
+
+**`rooms` is 3NF but not BCNF.** `room_type_id → hotel_id` holds because a room type belongs to one hotel, and `room_type_id` is not a superkey of `rooms`, so BCNF fails. 3NF still holds: `hotel_id` is part of the candidate key `(hotel_id, room_number)`, so it is a prime attribute. Removing `hotel_id` from `rooms` would reach BCNF, but `UNIQUE (hotel_id, room_number)` could then no longer be declared, so the database could not stop two rooms in one hotel sharing a number.
+
+**`booking_rooms` is 2NF but not 3NF.** Its only key is `id`, and three FDs pass through non-key attributes: `room_id → room_type_id`, `room_type_id → hotel_id` and `booking_id → hotel_id`. Each is kept on purpose; see below.
+
+**Note on addresses.** In the real world `postal_code → city, state, country`, which would be a transitive dependency in `hotels`. Like most practical designs, the schema treats a hotel's address as one descriptive value and does not split out a postal-code table. Values such as `city = 'Mumbai'` repeating across hotels are not a violation in themselves, since no FD connects them.
+
+#### Controlled denormalization
+
+Each redundant attribute exists for a stated reason, and a constraint ensures its copy can never disagree with its source. That rules out the update anomalies normalization is meant to prevent.
+
+| Attribute | Derivable from | Why it is stored | What keeps it consistent |
+|---|---|---|---|
+| `rooms.hotel_id` | `room_type_id` | Enables `UNIQUE (hotel_id, room_number)` and direct hotel filters | FK `(room_type_id, hotel_id) → room_types(id, hotel_id)` |
+| `booking_rooms.room_type_id` | `room_id` | `room_id` is `NULL` until a physical room is allocated; the requested type must still be recorded | FK `(room_id, room_type_id) → rooms(id, room_type_id)` |
+| `booking_rooms.hotel_id` | `booking_id` or `room_type_id` | Lets the database force every room of a booking to be at the booking's hotel | FKs `(booking_id, hotel_id) → bookings(id, hotel_id)` and `(room_type_id, hotel_id) → room_types(id, hotel_id)` |
+
+#### Redundancy across tables
+
+Normal forms are checked one relation at a time, so they do not detect a fact stored in two different tables. The schema has two such cases:
+
+- **`reviews.user_id`, `reviews.hotel_id`** repeat the user and hotel of `reviews.booking_id`. Inside `reviews` they are fine (`booking_id` is a candidate key), but they must agree with `bookings`. The trigger `trg_enforce_review_eligibility` checks this on every insert and update.
+- **`bookings.guest_count`** equals the sum of `booking_rooms.guest_count` for that booking. It is kept as a convenient total and is set by the booking service. No database constraint enforces it yet.
+
+#### Values that look redundant but are not
+
+- **`booking_rooms.nightly_rate`** is not determined by `room_types.base_price`. It is a snapshot of the price at booking time, and the two differ once a price changes; this preserves historical totals and revenue.
+- **`payments.amount`** is likewise the amount actually charged, not a value derived from the current rates.
+- **`hotels.search_text`** is derived from the name, city, state, country and description, but it is a `STORED` generated column: PostgreSQL recomputes it on every write and rejects direct updates, so it cannot become inconsistent. It exists to carry the trigram index used by fuzzy search.
+- **`hotels.registered_by`** and the owner row in `hotel_members` record different facts: who registered the hotel, and who currently has owner access. Ownership can change without rewriting history.
 
 ## 6. Proposed Application Workflows
 

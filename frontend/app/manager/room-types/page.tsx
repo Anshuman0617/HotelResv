@@ -14,7 +14,7 @@ const currency = new Intl.NumberFormat("en-IN", {
 });
 
 const inputClass =
-  "mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+  "mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100";
 
 export default function ManagerRoomTypesPage() {
   const {
@@ -103,13 +103,13 @@ export default function ManagerRoomTypesPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-700">
+          <p className="text-sm font-medium text-clay-700">
             {selectedHotel.name}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Room types
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Manage the room categories, capacity, and nightly starting prices.
           </p>
         </div>
@@ -120,7 +120,7 @@ export default function ManagerRoomTypesPage() {
             setFormHotelId(selectedHotel.id);
             setIsAdding(true);
           }}
-          className="rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+          className="rounded-md bg-clay-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-clay-700"
         >
           Add room type
         </button>
@@ -128,11 +128,11 @@ export default function ManagerRoomTypesPage() {
 
       {inventoryError ? <ErrorNotice message={inventoryError} /> : null}
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+      <section className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-sand-200 px-5 py-4">
           <div>
-            <h2 className="font-semibold text-slate-900">Room categories</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="font-semibold text-sand-900">Room categories</h2>
+            <p className="mt-1 text-sm text-sand-500">
               {hotelRoomTypes.length} room type{hotelRoomTypes.length === 1 ? "" : "s"} at this hotel
             </p>
           </div>
@@ -140,7 +140,7 @@ export default function ManagerRoomTypesPage() {
         {hotelRoomTypes.length ? (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
                 <tr>
                   <th className="px-5 py-3 font-medium">Room type</th>
                   <th className="px-5 py-3 font-medium">Max guests</th>
@@ -149,7 +149,7 @@ export default function ManagerRoomTypesPage() {
                   <th className="px-5 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-sand-100">
                 {hotelRoomTypes.map((roomType) => {
                   const roomCount = rooms.filter(
                     (room) => room.room_type_id === roomType.id,
@@ -157,20 +157,20 @@ export default function ManagerRoomTypesPage() {
                   return (
                     <tr key={roomType.id} className="align-top">
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900">
+                        <p className="font-medium text-sand-900">
                           {roomType.name}
                         </p>
-                        <p className="mt-1 max-w-md text-xs leading-5 text-slate-500">
+                        <p className="mt-1 max-w-md text-xs leading-5 text-sand-500">
                           {roomType.description || "No description"}
                         </p>
                       </td>
-                      <td className="px-5 py-4 text-slate-700">
+                      <td className="px-5 py-4 text-sand-700">
                         {roomType.max_guests}
                       </td>
-                      <td className="px-5 py-4 font-medium text-slate-900">
+                      <td className="px-5 py-4 font-medium text-sand-900">
                         {currency.format(roomType.base_price)}
                       </td>
-                      <td className="px-5 py-4 text-slate-700">{roomCount}</td>
+                      <td className="px-5 py-4 text-sand-700">{roomCount}</td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
                           <button
@@ -180,7 +180,7 @@ export default function ManagerRoomTypesPage() {
                               setFormHotelId(roomType.hotel_id);
                               setEditingRoomType(roomType);
                             }}
-                            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            className="rounded-md border border-sand-300 px-3 py-1.5 text-xs font-semibold text-sand-700 hover:bg-sand-50"
                           >
                             Edit
                           </button>
@@ -194,8 +194,8 @@ export default function ManagerRoomTypesPage() {
           </div>
         ) : (
           <div className="px-5 py-12 text-center">
-            <p className="font-medium text-slate-900">No room types yet</p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="font-medium text-sand-900">No room types yet</p>
+            <p className="mt-1 text-sm text-sand-500">
               Add a room type to start organizing this hotel&apos;s inventory.
             </p>
           </div>
@@ -209,7 +209,7 @@ export default function ManagerRoomTypesPage() {
           onClose={closeForm}
         >
           <form onSubmit={submitRoomType} className="grid gap-4">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-sand-700">
               Room type name
               <input
                 name="name"
@@ -219,7 +219,7 @@ export default function ManagerRoomTypesPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-sand-700">
               Description
               <textarea
                 name="description"
@@ -229,7 +229,7 @@ export default function ManagerRoomTypesPage() {
               />
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-sand-700">
                 Maximum guests
                 <input
                   type="number"
@@ -242,7 +242,7 @@ export default function ManagerRoomTypesPage() {
                   className={inputClass}
                 />
               </label>
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-sand-700">
                 Base price per night (INR)
                 <input
                   type="number"
@@ -261,18 +261,18 @@ export default function ManagerRoomTypesPage() {
                 {formError}
               </p>
             ) : null}
-            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+            <div className="flex justify-end gap-3 border-t border-sand-200 pt-4">
               <button
                 type="button"
                 onClick={closeForm}
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-sand-300 px-4 py-2 text-sm font-medium text-sand-700 hover:bg-sand-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-md bg-clay-600 px-4 py-2 text-sm font-semibold text-white hover:bg-clay-700 disabled:opacity-50"
               >
                 {saving ? "Saving…" : editingRoomType ? "Save changes" : "Add room type"}
               </button>

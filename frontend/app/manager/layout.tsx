@@ -15,13 +15,13 @@ function ManagerFrame({ children }: { children: ReactNode }) {
   const { hotels, selectedHotel, setSelectedHotelId } = useManagerHotel();
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
+    <div className="flex min-h-[calc(100vh-4rem)] bg-sand-50">
       <Sidebar open={menuOpen} onNavigate={() => setMenuOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+        <header className="flex items-center justify-between gap-3 border-b border-sand-200 bg-white px-4 py-3 sm:px-6">
           <button
             type="button"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 md:hidden"
+            className="rounded-md border border-sand-300 px-3 py-1.5 text-sm font-medium text-sand-700 md:hidden"
             onClick={() => setMenuOpen(true)}
           >
             Menu
@@ -29,7 +29,7 @@ function ManagerFrame({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-2">
             <label
               htmlFor="hotel-switcher"
-              className="text-sm font-medium text-slate-600"
+              className="sr-only text-sm font-medium text-sand-600 sm:not-sr-only"
             >
               Hotel
             </label>
@@ -39,7 +39,7 @@ function ManagerFrame({ children }: { children: ReactNode }) {
               onChange={(event) =>
                 setSelectedHotelId(Number(event.target.value))
               }
-              className="max-w-[16rem] rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              className="max-w-[16rem] rounded-md border border-sand-300 bg-white px-3 py-2 text-sm text-sand-900"
             >
               {hotels.map((hotel) => (
                 <option key={hotel.id} value={hotel.id}>

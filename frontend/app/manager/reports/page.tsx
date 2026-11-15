@@ -77,13 +77,13 @@ export default function ManagerReportsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-indigo-700">
+          <p className="text-sm font-medium text-clay-700">
             Manager workspace
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Reports
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             Live results of the reporting SQL queries for{" "}
             {selectedHotel.name}.
           </p>
@@ -91,7 +91,7 @@ export default function ManagerReportsPage() {
       </header>
 
       {!reportsAllowed ? (
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <p className="rounded-lg border border-sand-200 bg-white px-4 py-3 text-sm text-sand-600">
           Revenue and room-type reports are visible to owners and managers.
         </p>
       ) : null}
@@ -108,24 +108,24 @@ export default function ManagerReportsPage() {
 
       <section
         aria-labelledby="revenue-title"
-        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+        className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm"
       >
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-sand-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+            <p className="text-xs font-semibold uppercase tracking-wide text-clay-700">
               Query 3
             </p>
             <h2
               id="revenue-title"
-              className="mt-1 text-lg font-semibold text-slate-900"
+              className="mt-1 text-lg font-semibold text-sand-900"
             >
               Monthly revenue
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-sand-500">
               Successful payments grouped by month for {selectedHotel.name}.
             </p>
           </div>
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+          <label className="flex items-center gap-2 text-sm font-medium text-sand-600">
             Reporting period
             <select
               value={selectedMonth}
@@ -135,7 +135,7 @@ export default function ManagerReportsPage() {
                   month: event.target.value,
                 })
               }
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              className="rounded-md border border-sand-300 bg-white px-3 py-2 text-sm text-sand-900"
             >
               <option value={allMonths}>All available months</option>
               {months.map((month) => (
@@ -149,7 +149,7 @@ export default function ManagerReportsPage() {
 
         <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(16rem,0.7fr)]">
           <div>
-            <h3 className="text-sm font-semibold text-slate-700">
+            <h3 className="text-sm font-semibold text-sand-700">
               Revenue by month
             </h3>
             {revenueRows.length ? (
@@ -159,22 +159,22 @@ export default function ManagerReportsPage() {
                     key={`${row.hotel_id}-${row.revenue_month}`}
                     className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-3 text-sm"
                   >
-                    <span className="text-slate-600">
+                    <span className="text-sand-600">
                       {formatMonth(row.revenue_month)}
                     </span>
                     <div
-                      className="h-3 overflow-hidden rounded-full bg-slate-100"
+                      className="h-3 overflow-hidden rounded-full bg-sand-100"
                       role="img"
                       aria-label={`${currency.format(Number(row.monthly_revenue))} revenue`}
                     >
                       <div
-                        className="h-full rounded-full bg-indigo-600"
+                        className="h-full rounded-full bg-clay-600"
                         style={{
                           width: `${(Number(row.monthly_revenue) / maxMonthlyRevenue) * 100}%`,
                         }}
                       />
                     </div>
-                    <span className="text-right font-medium text-slate-900">
+                    <span className="text-right font-medium text-sand-900">
                       {currency.format(Number(row.monthly_revenue))}
                     </span>
                   </div>
@@ -191,14 +191,14 @@ export default function ManagerReportsPage() {
             )}
           </div>
 
-          <div className="flex flex-col justify-center rounded-lg bg-indigo-50 p-5">
-            <p className="text-sm font-medium text-indigo-800">
+          <div className="flex flex-col justify-center rounded-lg bg-clay-50 p-5">
+            <p className="text-sm font-medium text-clay-800">
               Total revenue for selected period
             </p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight text-indigo-950">
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-clay-950">
               {currency.format(reportingPeriodRevenue)}
             </p>
-            <p className="mt-2 text-xs text-indigo-800">
+            <p className="mt-2 text-xs text-clay-800">
               {selectedMonth === allMonths
                 ? `${revenueRows.length} available months`
                 : formatMonth(selectedMonth)}{" "}
@@ -207,9 +207,9 @@ export default function ManagerReportsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto border-t border-slate-100">
+        <div className="overflow-x-auto border-t border-sand-100">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
               <tr>
                 <th className="px-5 py-3 font-medium">Month</th>
                 <th className="px-5 py-3 font-medium">Hotel</th>
@@ -221,19 +221,19 @@ export default function ManagerReportsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-sand-100">
               {revenueRows.map((row) => (
                 <tr key={`${row.hotel_id}-${row.revenue_month}`}>
-                  <td className="px-5 py-3 text-slate-700">
+                  <td className="px-5 py-3 text-sand-700">
                     {formatMonth(row.revenue_month)}
                   </td>
-                  <td className="px-5 py-3 text-slate-700">
+                  <td className="px-5 py-3 text-sand-700">
                     {row.hotel_name}
                   </td>
-                  <td className="px-5 py-3 text-right text-slate-700">
+                  <td className="px-5 py-3 text-right text-sand-700">
                     {row.paid_bookings_count}
                   </td>
-                  <td className="px-5 py-3 text-right font-medium text-slate-900">
+                  <td className="px-5 py-3 text-right font-medium text-sand-900">
                     {currency.format(Number(row.monthly_revenue))}
                   </td>
                 </tr>
@@ -242,7 +242,7 @@ export default function ManagerReportsPage() {
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-5 py-6 text-center text-slate-500"
+                    className="px-5 py-6 text-center text-sand-500"
                   >
                     No revenue rows for this period.
                   </td>
@@ -255,25 +255,25 @@ export default function ManagerReportsPage() {
 
       <section
         aria-labelledby="room-types-title"
-        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+        className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm"
       >
-        <div className="border-b border-slate-200 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+        <div className="border-b border-sand-200 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-clay-700">
             Query 4
           </p>
           <h2
             id="room-types-title"
-            className="mt-1 text-lg font-semibold text-slate-900"
+            className="mt-1 text-lg font-semibold text-sand-900"
           >
             Popular room types
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-sand-500">
             Ranked by confirmed and completed bookings at {selectedHotel.name}.
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
               <tr>
                 <th className="px-5 py-3 font-medium">Rank</th>
                 <th className="px-5 py-3 font-medium">Room type</th>
@@ -286,22 +286,22 @@ export default function ManagerReportsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-sand-100">
               {popularRoomRows.map((row, index) => (
                 <tr key={row.room_type_id}>
-                  <td className="px-5 py-3 font-medium text-slate-500">
+                  <td className="px-5 py-3 font-medium text-sand-500">
                     {index + 1}
                   </td>
-                  <td className="px-5 py-3 font-medium text-slate-900">
+                  <td className="px-5 py-3 font-medium text-sand-900">
                     {row.room_type_name}
                   </td>
-                  <td className="px-5 py-3 text-right text-slate-700">
+                  <td className="px-5 py-3 text-right text-sand-700">
                     {row.times_booked}
                   </td>
-                  <td className="px-5 py-3 text-right text-slate-700">
+                  <td className="px-5 py-3 text-right text-sand-700">
                     {currency.format(Number(row.avg_booked_nightly_rate))}
                   </td>
-                  <td className="px-5 py-3 text-right font-medium text-slate-900">
+                  <td className="px-5 py-3 text-right font-medium text-sand-900">
                     {currency.format(Number(row.total_room_revenue))}
                   </td>
                 </tr>
@@ -310,7 +310,7 @@ export default function ManagerReportsPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-5 py-6 text-center text-slate-500"
+                    className="px-5 py-6 text-center text-sand-500"
                   >
                     {popular.loading && !popular.data
                       ? "Loading room types…"
@@ -325,26 +325,26 @@ export default function ManagerReportsPage() {
 
       <section
         aria-labelledby="ratings-title"
-        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+        className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm"
       >
-        <div className="border-b border-slate-200 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+        <div className="border-b border-sand-200 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-clay-700">
             Query 5
           </p>
           <h2
             id="ratings-title"
-            className="mt-1 text-lg font-semibold text-slate-900"
+            className="mt-1 text-lg font-semibold text-sand-900"
           >
             Hotel ratings
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-sand-500">
             Every hotel that meets the threshold, ranked by average rating;{" "}
             {selectedHotel.name} is highlighted.
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-sand-50 text-xs uppercase tracking-wide text-sand-500">
               <tr>
                 <th className="px-5 py-3 font-medium">Rank</th>
                 <th className="px-5 py-3 font-medium">Hotel</th>
@@ -354,52 +354,52 @@ export default function ManagerReportsPage() {
                 <th className="px-5 py-3 text-right font-medium">Reviews</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-sand-100">
               {rankedHotels.map((row, index) => {
                 const isSelected = row.hotel_id === selectedHotel.id;
                 return (
                   <tr
                     key={row.hotel_id}
-                    className={isSelected ? "bg-indigo-50/70" : undefined}
+                    className={isSelected ? "bg-clay-50/70" : undefined}
                   >
-                    <td className="px-5 py-3 text-slate-500">{index + 1}</td>
+                    <td className="px-5 py-3 text-sand-500">{index + 1}</td>
                     <td className="px-5 py-3">
-                      <span className="font-medium text-slate-900">
+                      <span className="font-medium text-sand-900">
                         {row.hotel_name}
                       </span>
-                      <span className="ml-2 text-slate-500">{row.city}</span>
+                      <span className="ml-2 text-sand-500">{row.city}</span>
                       {isSelected ? (
-                        <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                        <span className="ml-2 rounded-full bg-clay-100 px-2 py-0.5 text-xs font-medium text-clay-800">
                           Selected
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-900">
+                    <td className="px-5 py-3 text-right font-medium text-sand-900">
                       {ratingFormat.format(Number(row.average_rating))} / 5
                     </td>
-                    <td className="px-5 py-3 text-right text-slate-700">
+                    <td className="px-5 py-3 text-right text-sand-700">
                       {row.total_reviews}
                     </td>
                   </tr>
                 );
               })}
               {ratings.data && !selectedIsRanked ? (
-                <tr className="bg-indigo-50/70">
-                  <td className="px-5 py-3 text-slate-500">—</td>
+                <tr className="bg-clay-50/70">
+                  <td className="px-5 py-3 text-sand-500">—</td>
                   <td className="px-5 py-3">
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-sand-900">
                       {selectedHotel.name}
                     </span>
-                    <span className="ml-2 text-slate-500">{selectedHotel.city}</span>
+                    <span className="ml-2 text-sand-500">{selectedHotel.city}</span>
                   </td>
-                  <td colSpan={2} className="px-5 py-3 text-right text-slate-500">
+                  <td colSpan={2} className="px-5 py-3 text-right text-sand-500">
                     Not ranked (needs at least 3 reviews averaging 3.5+)
                   </td>
                 </tr>
               ) : null}
               {ratings.loading && !ratings.data ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-6 text-center text-slate-500">
+                  <td colSpan={4} className="px-5 py-6 text-center text-sand-500">
                     Loading ratings…
                   </td>
                 </tr>
@@ -407,7 +407,7 @@ export default function ManagerReportsPage() {
             </tbody>
           </table>
         </div>
-        <p className="border-t border-slate-100 px-5 py-3 text-xs leading-5 text-slate-500">
+        <p className="border-t border-sand-100 px-5 py-3 text-xs leading-5 text-sand-500">
           Query 5 requires at least 3 reviews and a 3.5 average rating
           (HAVING clause), so hotels below the threshold are not ranked.
         </p>
@@ -427,5 +427,5 @@ function formatMonth(value: string) {
 }
 
 function EmptyState({ message }: { message: string }) {
-  return <p className="mt-4 text-sm text-slate-500">{message}</p>;
+  return <p className="mt-4 text-sm text-sand-500">{message}</p>;
 }

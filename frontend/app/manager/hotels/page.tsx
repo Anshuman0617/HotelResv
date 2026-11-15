@@ -13,12 +13,12 @@ import {
 
 const statusStyles: Record<HotelStatus, string> = {
   pending: "bg-amber-50 text-amber-700",
-  active: "bg-emerald-50 text-emerald-700",
-  suspended: "bg-slate-100 text-slate-700",
+  active: "bg-lagoon-50 text-lagoon-700",
+  suspended: "bg-sand-100 text-sand-700",
 };
 
 const inputClass =
-  "mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+  "mt-1 w-full rounded-md border border-sand-300 bg-white px-3 py-2 text-sm text-sand-900 outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-100";
 
 function nullableValue(value: string) {
   const trimmed = value.trim();
@@ -96,18 +96,18 @@ export default function ManagerHotelsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-700">Property settings</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <p className="text-sm font-medium text-clay-700">Property settings</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-sand-900 sm:text-3xl">
             Hotel profile
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-sand-600">
             View and update the profile for the hotel selected above.
           </p>
         </div>
         <button
           type="button"
           onClick={openEditor}
-          className="rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+          className="rounded-md bg-clay-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-clay-700"
         >
           Edit profile
         </button>
@@ -115,13 +115,13 @@ export default function ManagerHotelsPage() {
 
       {statusError ? <ErrorNotice message={statusError} /> : null}
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+      <section className="overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-sand-200 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-sand-900">
               {selectedHotel.name}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">{address}</p>
+            <p className="mt-1 text-sm text-sand-500">{address}</p>
           </div>
           <span
             className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusStyles[selectedHotel.status]}`}
@@ -132,10 +132,10 @@ export default function ManagerHotelsPage() {
 
         <div className="grid gap-6 p-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sand-500">
               Description
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-sand-700">
               {selectedHotel.description || "No description provided."}
             </p>
           </div>
@@ -145,7 +145,7 @@ export default function ManagerHotelsPage() {
           <Detail label="Country" value={selectedHotel.country} />
           <Detail label="Postal code" value={selectedHotel.postal_code || "—"} />
           <Detail label="Timezone" value={selectedHotel.timezone} />
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <label className="text-xs font-semibold uppercase tracking-wide text-sand-500">
             Hotel status
             <select
               value={selectedHotel.status}
@@ -176,7 +176,7 @@ export default function ManagerHotelsPage() {
           }}
         >
           <form onSubmit={saveProfile} className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-sand-700 sm:col-span-2">
               Hotel name
               <input
                 name="name"
@@ -186,7 +186,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-sand-700 sm:col-span-2">
               Description
               <textarea
                 name="description"
@@ -195,7 +195,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-sand-700 sm:col-span-2">
               Street address
               <input
                 name="address_line"
@@ -205,7 +205,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-sand-700">
               City
               <input
                 name="city"
@@ -215,7 +215,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-sand-700">
               State / region
               <input
                 name="state"
@@ -224,7 +224,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-sand-700">
               Country
               <input
                 name="country"
@@ -234,7 +234,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-sand-700">
               Postal code
               <input
                 name="postal_code"
@@ -243,7 +243,7 @@ export default function ManagerHotelsPage() {
                 className={inputClass}
               />
             </label>
-            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="text-sm font-medium text-sand-700 sm:col-span-2">
               Timezone
               <input
                 name="timezone"
@@ -258,21 +258,21 @@ export default function ManagerHotelsPage() {
                 {formError}
               </p>
             ) : null}
-            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 sm:col-span-2">
+            <div className="flex justify-end gap-3 border-t border-sand-200 pt-4 sm:col-span-2">
               <button
                 type="button"
                 onClick={() => {
                   setEditingHotel(null);
                   setFormError("");
                 }}
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-sand-300 px-4 py-2 text-sm font-medium text-sand-700 hover:bg-sand-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-md bg-clay-600 px-4 py-2 text-sm font-semibold text-white hover:bg-clay-700 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save changes"}
               </button>
@@ -287,10 +287,10 @@ export default function ManagerHotelsPage() {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <p className="text-xs font-semibold uppercase tracking-wide text-sand-500">
         {label}
       </p>
-      <p className="mt-1.5 text-sm text-slate-800">{value}</p>
+      <p className="mt-1.5 text-sm text-sand-800">{value}</p>
     </div>
   );
 }

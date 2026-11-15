@@ -35,19 +35,19 @@ export default function Sidebar({
       <button
         type="button"
         aria-label="Close manager menu"
-        className={`fixed inset-0 z-30 bg-slate-900/40 md:hidden ${open ? "block" : "hidden"}`}
+        className={`fixed inset-0 z-30 bg-sand-900/40 md:hidden ${open ? "block" : "hidden"}`}
         onClick={onNavigate}
       />
       <aside
-        className={`fixed top-16 bottom-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform md:static md:top-auto md:bottom-auto md:z-auto md:translate-x-0 ${
+        className={`fixed top-[6.5rem] sm:top-16 bottom-0 left-0 z-40 flex w-64 flex-col bg-lagoon-950 text-lagoon-100 transition-transform md:static md:top-auto md:bottom-auto md:z-auto md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="border-b border-slate-200 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+        <div className="border-b border-white/10 px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-clay-300">
             Manager
           </p>
-          <p className="mt-1 text-sm text-slate-500">Hotel operations</p>
+          <p className="mt-1 font-display text-lg text-white">Hotel operations</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {links.map((link) => {
@@ -58,10 +58,10 @@ export default function Sidebar({
                 href={link.href}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-white/10 text-white shadow-[inset_3px_0_0_var(--color-clay-400)]"
+                    : "text-lagoon-200/80 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 {link.label}
