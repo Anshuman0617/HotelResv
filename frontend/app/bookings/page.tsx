@@ -14,6 +14,8 @@ interface BookingDetail {
   status: BookingStatus;
   created_at: string;
   hotel_id: number | null;
+  hotel_name: string | null;
+  hotel_city: string | null;
   total: number;
   rooms: Array<{
     room_type_id: number;
@@ -219,8 +221,23 @@ export default function BookingsPage() {
                     Reservation
                   </span>
                   <h2 className="text-lg font-bold text-slate-900">
-                    Booking #{booking.id}
+                    {booking.hotel_id !== null && booking.hotel_name ? (
+                      <Link
+                        href={`/hotels/${booking.hotel_id}`}
+                        className="hover:text-indigo-600"
+                      >
+                        {booking.hotel_name}
+                      </Link>
+                    ) : (
+                      `Booking #${booking.id}`
+                    )}
                   </h2>
+                  {booking.hotel_name && (
+                    <p className="text-sm text-slate-500">
+                      {booking.hotel_city ? `${booking.hotel_city} · ` : ""}
+                      Booking #{booking.id}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span
