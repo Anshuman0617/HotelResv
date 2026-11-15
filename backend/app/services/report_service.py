@@ -9,7 +9,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # View: hotel_booking_summary (database/views.sql)
 SUMMARY_SQL = text(
@@ -158,33 +158,34 @@ REPEAT_CUSTOMERS_SQL = text(
 )
 
 
-def _rows(db: Session, statement, **params: Any) -> list[dict[str, Any]]:
-    return [dict(row) for row in db.execute(statement, params).mappings()]
+async def _rows(db: AsyncSession, statement, **params: Any) -> list[dict[str, Any]]:
+    result = await db.execute(statement, params)
+    return [dict(row) for row in result.mappings()]
 
 
-def summary(db: Session, hotel_id: int) -> dict[str, Any] | None:
-    rows = _rows(db, SUMMARY_SQL, hotel_id=hotel_id)
+async def summary(db: AsyncSession, hotel_id: int) -> dict[str, Any] | None:
+    rows = await _rows(db, SUMMARY_SQL, hotel_id=hotel_id)
     return rows[0] if rows else None
 
 
-def bookings(db: Session, hotel_id: int, limit: int, offset: int) -> list[dict[str, Any]]:
-    return _rows(db, BOOKINGS_SQL, hotel_id=hotel_id, limit=limit, offset=offset)
+async def bookings(db: AsyncSession, hotel_id: int, limit: int, offset: int) -> list[dict[str, Any]]:
+    return await _rows(db, BOOKINGS_SQL, hotel_id=hotel_id, limit=limit, offset=offset)
 
 
-def monthly_revenue(db: Session, hotel_id: int) -> list[dict[str, Any]]:
-    return _rows(db, REVENUE_SQL, hotel_id=hotel_id)
+async def monthly_revenue(db: AsyncSession, hotel_id: int) -> list[dict[str, Any]]:
+    return await _rows(db, REVENUE_SQL, hotel_id=hotel_id)
 
 
-def popular_room_types(db: Session, hotel_id: int) -> list[dict[str, Any]]:
-    return _rows(db, POPULAR_ROOM_TYPES_SQL, hotel_id=hotel_id)
+async def popular_room_types(db: AsyncSession, hotel_id: int) -> list[dict[str, Any]]:
+    return await _rows(db, POPULAR_ROOM_TYPES_SQL, hotel_id=hotel_id)
 
 
-def top_rated_hotels(db: Session) -> list[dict[str, Any]]:
-    return _rows(db, TOP_RATED_HOTELS_SQL)
+async def top_rated_hotels(db: AsyncSession) -> list[dict[str, Any]]:
+    return await _rows(db, TOP_RATED_HOTELS_SQL)
 
 
-def repeat_customers(db: Session, hotel_id: int) -> list[dict[str, Any]]:
-    return _rows(db, REPEAT_CUSTOMERS_SQL, hotel_id=hotel_id)
+async def repeat_customers(db: AsyncSession, hotel_id: int) -> list[dict[str, Any]]:
+    return await _rows(db, REPEAT_CUSTOMERS_SQL, hotel_id=hotel_id)
 
 
 PAYMENTS_SQL = text(
@@ -204,8 +205,8 @@ PAYMENTS_SQL = text(
 )
 
 
-def hotel_payments(db: Session, hotel_id: int) -> list[dict[str, Any]]:
-    return _rows(db, PAYMENTS_SQL, hotel_id=hotel_id)
+async def hotel_payments(db: AsyncSession, hotel_id: int) -> list[dict[str, Any]]:
+    return await _rows(db, PAYMENTS_SQL, hotel_id=hotel_id)
 
 
 
@@ -233,5 +234,5 @@ ROOM_BOOKINGS_SQL = text(
 )
 
 
-def room_bookings(db: Session, room_id: int, today: date) -> list[dict[str, Any]]:
-    return _rows(db, ROOM_BOOKINGS_SQL, room_id=room_id, today=today)
+async def room_bookings(db: AsyncSession, room_id: int, today: date) -> list[dict[str, Any]]:
+    return await _rows(db, ROOM_BOOKINGS_SQL, room_id=room_id, today=today)
