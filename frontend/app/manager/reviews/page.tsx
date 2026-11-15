@@ -217,7 +217,7 @@ export default function ManagerReviewsPage() {
                   </div>
                   {rev.comment && (
                     <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                      "{rev.comment}"
+                      &ldquo;{rev.comment}&rdquo;
                     </p>
                   )}
                 </div>

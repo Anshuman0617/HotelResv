@@ -314,7 +314,7 @@ export default function BookingsPage() {
                 <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-slate-700">
                   <span className="font-semibold text-amber-700">Your Rating: {"★".repeat(booking.review.rating)}{"☆".repeat(5 - booking.review.rating)}</span>
                   {booking.review.comment && (
-                    <p className="mt-1 text-slate-600 italic">"{booking.review.comment}"</p>
+                    <p className="mt-1 text-slate-600 italic">&ldquo;{booking.review.comment}&rdquo;</p>
                   )}
                 </div>
               )}
