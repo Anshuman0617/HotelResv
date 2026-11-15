@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
-const links = [
+type NavItem = { href: string; label: string };
+
+const customerLinks: NavItem[] = [
   { href: "/hotels", label: "Stays" },
   { href: "/bookings", label: "My bookings" },
-  { href: "/manager", label: "Manage" },
 ];
+// Only for owners, managers and staff of at least one hotel.
+const managerLink: NavItem = { href: "/manager", label: "Manage" };
 
 function initials(name: string) {
   return name
@@ -49,7 +52,7 @@ function NavLink({
 }
 
 /** Reads the URL to highlight the current section, so it renders inside Suspense. */
-function ActiveNavLinks({ compact = false }: { compact?: boolean }) {
+function ActiveNavLinks({ links, compact = false }: { links: NavItem[]; compact?: boolean }) {
   const pathname = usePathname();
   return links.map((link) => (
     <NavLink
@@ -62,7 +65,8 @@ function ActiveNavLinks({ compact = false }: { compact?: boolean }) {
 }
 
 export default function Navbar() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, managesHotels, logout } = useAuth();
+  const links = managesHotels ? [...customerLinks, managerLink] : customerLinks;
 
   return (
     <header className="sticky top-0 z-50 border-b border-sand-200/80 bg-sand-50/90 backdrop-blur">
@@ -85,7 +89,7 @@ export default function Navbar() {
               <NavLink key={link.href} {...link} active={false} />
             ))}
           >
-            <ActiveNavLinks />
+            <ActiveNavLinks links={links} />
           </Suspense>
 
           <span aria-hidden className="mx-1 hidden h-5 w-px bg-sand-200 sm:block" />
@@ -132,7 +136,7 @@ export default function Navbar() {
             <NavLink key={link.href} {...link} active={false} compact />
           ))}
         >
-          <ActiveNavLinks compact />
+          <ActiveNavLinks links={links} compact />
         </Suspense>
       </div>
     </header>
