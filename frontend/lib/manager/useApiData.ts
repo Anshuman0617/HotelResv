@@ -61,13 +61,6 @@ export function describeApiError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401) return "Your session has expired. Sign in again.";
     if (error.status === 403) return "You don't have permission to do this for this hotel.";
-    // FastAPI validation errors: {"detail": [{"loc": [...], "msg": "..."}]}
-    const detail = (error.data as { detail?: unknown } | null)?.detail;
-    if (Array.isArray(detail) && detail.length) {
-      const first = detail[0] as { loc?: unknown[]; msg?: string };
-      const field = first.loc?.[first.loc.length - 1];
-      if (first.msg) return field ? `${String(field)}: ${first.msg}` : first.msg;
-    }
     return error.message;
   }
   if (error instanceof TypeError) {
