@@ -60,14 +60,16 @@ frontend/
 │   └── manager/                    # Manager navigation, context and UI
 ├── lib/
 │   ├── api.ts                      # API base URL, response envelope, fetch helper
+│   ├── auth-context.tsx            # Signed-in user, login/register/logout
 │   ├── types.ts                    # Types matching the database models
-│   └── manager/mock.ts             # Schema-aligned manager sample data
+│   └── manager/
+│       ├── types.ts                # Manager API response types
+│       └── useApiData.ts           # Load an API path with loading/error state
 └── public/                         # Static assets
 ```
 
-Pages currently contain placeholders. Login, registration, hotel search, room
-selection, checkout, booking history, cancellation, and reviews will be wired to
-the backend in the next M5 task.
+Every page reads and writes through the backend API; there is no mock data. If
+a request fails, the page shows the error instead of sample rows.
 
 ## API conventions
 
@@ -92,20 +94,19 @@ sets the `Authorization: Bearer <token>` header when a token is stored in
 
 ## Manager reports (Day 4 / M6)
 
-The manager Reports page previews the three M6 SQL reports in
+`/manager` requires sign-in and lists only the hotels the user belongs to
+(`GET /api/manager/hotels`). Reports, reservations and payments are visible to
+owners and managers; staff can manage rooms.
+
+The manager Reports page shows live results of the three M6 SQL reports in
 `../database/queries.sql`:
 
-- **Query 3 – Monthly revenue:** successful payment totals by month and hotel.
-  The selected hotel and reporting period control the chart, rows, and period
-  total.
+- **Query 3 – Monthly revenue:** successful payment totals by month for the
+  selected hotel. The reporting period controls the chart, rows and total.
 - **Query 4 – Popular room types:** confirmed/completed booking counts,
   average booked nightly rate, and room revenue, scoped to the selected hotel.
-- **Query 5 – Hotel ratings:** hotels ranked by average rating and review count.
-  The selected hotel is highlighted; hotels without reviews are not assigned a
-  fabricated rating and are excluded from the query's ranking.
+- **Query 5 – Hotel ratings:** hotels with at least 3 reviews averaging 3.5 or
+  more, ranked by average rating. The selected hotel is highlighted, or marked
+  as not ranked when it doesn't meet the threshold.
 
-The figures are labelled **mock previews** from
-`lib/manager/mock.ts`. SQL execution against PostgreSQL was not available during
-implementation, and the page does not claim live database results. Backend/API
-integration, database connectivity, and wiring the query result adapters remain
-dependencies for live reports.
+The Reservations page lists the hotel's booking history from Query 2.
